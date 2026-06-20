@@ -48,6 +48,7 @@
   --color-on-error: #690005;
   --color-surface-container: #201f1f;
   --color-tertiary-container: #e2e2e2;
+  --color-accent-teal: #00f2ff;
 
   --radius-DEFAULT: 0.25rem;
   --radius-lg: 0.5rem;
@@ -135,3 +136,52 @@ body {
 .animate-float {
   animation: float 6s ease-in-out infinite;
 }
+
+.video-bg {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -1;
+    filter: brightness(0.4) grayscale(0.5);
+  }
+  
+  .perspective-container {
+    perspective: 1000px;
+  }
+  
+  .tilt-card {
+    transition: transform 0.2s ease-out;
+    transform-style: preserve-3d;
+  }
+  
+  .material-symbols-outlined {
+    font-family: 'Material Symbols Outlined';
+    font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
+  }
+  
+  .glass-input:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #00f2ff;
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.15);
+    outline: none;
+  }
+  
+  /* Scoped so this page's liquid-glass doesn't clash with Welcome's liquid-glass */
+  .patient-access-page .liquid-glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+  }
+  
+  .dietitian-login-page .liquid-glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+  }
