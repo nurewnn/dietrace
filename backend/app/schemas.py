@@ -141,6 +141,8 @@ class PatientHealthProfileBase(BaseModel):
     # Matches F50 in FACTS_AND_RULES_LATEST.md — confirmed "normal" is correct.
     patient_category: str = "normal"
     pregnancy_trimester: Optional[int] = Field(default=None, ge=1, le=3)
+    smokes: bool = False
+    sleep_pattern: str = "normal"
     notes: Optional[str] = None
 
 
@@ -162,6 +164,8 @@ class PatientHealthProfileUpdate(BaseModel):
     preferred_carbohydrate: Optional[str] = None
     patient_category: Optional[str] = None
     pregnancy_trimester: Optional[int] = Field(default=None, ge=1, le=3)
+    smokes: Optional[bool] = None
+    sleep_pattern: Optional[str] = None
     notes: Optional[str] = None
 
 

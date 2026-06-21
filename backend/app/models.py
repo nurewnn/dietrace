@@ -165,6 +165,12 @@ class PatientHealthProfile(Base):
         Text, nullable=False, server_default=text("'normal'::text")
     )
     pregnancy_trimester: Mapped[Optional[int]] = mapped_column(Integer)
+    smokes: Mapped[bool] = mapped_column(
+        Boolean, nullable=False, server_default=text("false")
+    )
+    sleep_pattern: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'normal'::text")
+    )
     notes: Mapped[Optional[str]] = mapped_column(Text)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=text("now()")

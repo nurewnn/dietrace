@@ -49,11 +49,22 @@
   --color-surface-container: #201f1f;
   --color-tertiary-container: #e2e2e2;
   --color-accent-teal: #00f2ff;
+  --color-warning: #ffb300;
+  --color-success: #00e676;
+  --color-info: #2979ff;
+  --color-sage: #86a697;
+  
 
   --radius-DEFAULT: 0.25rem;
   --radius-lg: 0.5rem;
   --radius-xl: 0.75rem;
   --radius-full: 9999px;
+
+  --font-caption-bold: "Poppins", sans-serif;
+  --text-caption-bold: 10px;
+  --text-caption-bold--line-height: 1;
+  --text-caption-bold--letter-spacing: 0.2em;
+  --text-caption-bold--font-weight: 700;
 
   --font-headline-md: "Poppins", sans-serif;
   --font-body-lg: "Poppins", sans-serif;
@@ -184,4 +195,110 @@ body {
     -webkit-backdrop-filter: blur(24px);
     border: 1px solid rgba(255, 255, 255, 0.08);
     box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+  }
+
+  .dietitian-dashboard-page .liquid-glass-panel {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  }
+  
+  .dietitian-dashboard-page .liquid-glass-panel:hover {
+    border-color: rgba(255, 255, 255, 0.15);
+    background: rgba(255, 255, 255, 0.05);
+  }
+  
+  .dietitian-dashboard-page .glass-card-nested {
+    background: rgba(255, 255, 255, 0.05);
+    backdrop-filter: blur(10px);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .dietitian-dashboard-page .custom-scrollbar::-webkit-scrollbar {
+    width: 4px;
+  }
+  .dietitian-dashboard-page .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  .dietitian-dashboard-page .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.1);
+    border-radius: 10px;
+  }
+  
+  .dietitian-dashboard-page .action-button-gradient {
+    background: #ffffff;
+    color: #0e0e0e;
+    transition: all 0.3s ease;
+  }
+  .dietitian-dashboard-page .action-button-gradient:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 20px rgba(255, 255, 255, 0.2);
+  }
+  
+  .dietitian-dashboard-page .metric-value {
+    color: #ffffff;
+    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
+  }
+
+  .patients-page .liquid-glass {
+    background: rgba(255, 255, 255, 0.03);
+    backdrop-filter: blur(24px);
+    -webkit-backdrop-filter: blur(24px);
+    border: 1px solid rgba(255, 255, 255, 0.08);
+    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+  }
+  
+  .patients-page input[type="text"],
+  .patients-page input[type="number"],
+  .patients-page input[type="date"],
+  .patients-page select,
+  .patients-page textarea {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border-radius: 0.75rem;
+    transition: all 0.2s ease;
+  }
+  
+  .patients-page input:focus,
+  .patients-page select:focus,
+  .patients-page textarea:focus {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: #00f2ff;
+    outline: none;
+    box-shadow: 0 0 20px rgba(0, 242, 255, 0.15);
+  }
+  
+  .patients-page .tag-chip {
+    background: rgba(0, 242, 255, 0.1);
+    color: #00f2ff;
+    border: 1px solid rgba(0, 242, 255, 0.2);
+  }
+  
+  .patients-page ::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+  }
+  
+  .patients-page .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+
+  /* Appended for Patient Approved Menu Page */
+  .approved-menu-page .liquid-glass {
+    backdrop-filter: blur(40px);
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  .approved-menu-page .tilt-card {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  
+  .approved-menu-page .status-badge-approved {
+    background: rgba(255, 255, 255, 0.1);
+    color: #ffffff;
+    border: 1px solid rgba(255, 255, 255, 0.3);
   }
