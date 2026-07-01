@@ -1,7 +1,7 @@
+// ApprovedMenu.tsx - Updated version
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-
-const API_BASE_URL = "http://localhost:8000";
+import { API_URL } from "../../lib/api";
 
 type MealTime = "breakfast" | "lunch" | "dinner";
 type MenuStatus = "approved" | "pending_review" | "rejected" | "modified" | "needs_dietitian_action";
@@ -11,6 +11,12 @@ interface MealItem {
   menuName: string;
   tags: string[];
   note: string;
+  calories?: number;
+  sugar?: string;
+  sodium?: string;
+  fat?: string;
+  imageUrl?: string;
+  friendlyNote?: string;
 }
 
 interface ApprovedMenuData {
@@ -22,38 +28,49 @@ interface ApprovedMenuData {
   meals: MealItem[];
 }
 
-const mockApprovedData: ApprovedMenuData = {
-  patientName: "Julian S. Vance",
-  patientCode: "PX-8829-01",
-  ward: "Oncology (Wing B)",
-  dietitianName: "Dr. Elena Thorne",
-  status: "approved",
-  meals: [
-    {
-      mealTime: "breakfast",
-      menuName: "Low-Glycemic Power Bowl",
-      tags: ["Low Sugar", "High Fiber"],
-      note: "Approved for glucose management and sustained morning energy.",
-    },
-    {
-      mealTime: "lunch",
-      menuName: "Atlantic Salmon & Quinoa",
-      tags: ["Low Sodium", "Omega 3+"],
-      note: "Selected for anti-inflammatory properties and blood pressure maintenance.",
-    },
-    {
-      mealTime: "dinner",
-      menuName: "Herb-Roasted Lean Protein",
-      tags: ["Light Digestion", "Dairy Free"],
-      note: "Lighter meal to prevent reflux while meeting protein requirements.",
-    },
-  ],
+const mealStyles: Record<MealTime, { icon: string; textColor: string; borderColor: string; bgGradient: string; accentColor: string; iconBg: string }> = {
+  breakfast: { 
+    icon: "wb_sunny", 
+    textColor: "text-amber-600", 
+    borderColor: "border-amber-400", 
+    bgGradient: "from-amber-50/80 to-orange-50/80",
+    accentColor: "#F59E0B",
+    iconBg: "bg-amber-100",
+  },
+  lunch: { 
+    icon: "sunny", 
+    textColor: "text-green-600", 
+    borderColor: "border-green-400", 
+    bgGradient: "from-green-50/80 to-emerald-50/80",
+    accentColor: "#22C55E",
+    iconBg: "bg-green-100",
+  },
+  dinner: { 
+    icon: "bedtime", 
+    textColor: "text-indigo-600", 
+    borderColor: "border-indigo-400", 
+    bgGradient: "from-indigo-50/80 to-purple-50/80",
+    accentColor: "#6366F1",
+    iconBg: "bg-indigo-100",
+  },
 };
 
-const mealStyles: Record<MealTime, { icon: string; textColor: string; borderColor: string; glow: string }> = {
-  breakfast: { icon: "wb_sunny", textColor: "text-amber-400", borderColor: "border-amber-400/50", glow: "rgba(251,191,36,0.1)" },
-  lunch: { icon: "sunny", textColor: "text-blue-400", borderColor: "border-blue-400/50", glow: "rgba(96,165,250,0.1)" },
-  dinner: { icon: "bedtime", textColor: "text-purple-400", borderColor: "border-purple-400/50", glow: "rgba(192,132,252,0.1)" },
+const friendlyNotes: Record<string, string[]> = {
+  breakfast: [
+    "A gentle start to your day with balanced nutrition.",
+    "Chosen to provide steady morning energy without sugar spikes.",
+    "Light yet nourishing — perfect for your recovery.",
+  ],
+  lunch: [
+    "A wholesome midday meal to support your healing journey.",
+    "Carefully selected to meet your dietary needs with great taste.",
+    "Packed with nutrients to keep you strong through the afternoon.",
+  ],
+  dinner: [
+    "A comforting evening meal designed for restful recovery.",
+    "Easy to digest while delivering essential nutrients.",
+    "The perfect way to end your day on a healthy note.",
+  ],
 };
 
 function getInitials(name: string) {
@@ -66,6 +83,11 @@ function getInitials(name: string) {
     .toUpperCase();
 }
 
+function getFriendlyNote(mealTime: string, index: number): string {
+  const notes = friendlyNotes[mealTime.toLowerCase()] || friendlyNotes.breakfast;
+  return notes[index % notes.length];
+}
+
 export default function ApprovedMenu() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
@@ -74,7 +96,7 @@ export default function ApprovedMenu() {
   const wrapperRef = useRef<HTMLDivElement>(null);
   const [data, setData] = useState<ApprovedMenuData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-  const [usingMockData, setUsingMockData] = useState(false);
+  const [error, setError] = useState("");
 
   useEffect(() => {
     async function loadApprovedMenu() {
@@ -82,31 +104,36 @@ export default function ApprovedMenu() {
         setIsLoading(false);
         return;
       }
+      setIsLoading(true);
+      setError("");
       try {
-        const res = await fetch(`${API_BASE_URL}/patient-view/${encodeURIComponent(patientId)}`);
-        if (!res.ok) throw new Error(`Endpoint returned ${res.status}`);
+        const res = await fetch(`${API_URL}/patient-view/${encodeURIComponent(patientId)}`);
+        if (!res.ok) {
+          if (res.status === 404) throw new Error("Patient not found.");
+          throw new Error(`Server returned ${res.status}: ${res.statusText}`);
+        }
         const apiData = await res.json();
-        // TODO: confirm real field names once /patient-view/{patient_code} exists.
-        // Assumed shape: { patient_name, patient_code, ward, dietitian_name, status,
-        // items: [{ meal_time, menu_name, tags, reason }] }
         setData({
           patientName: apiData.patient_name,
           patientCode: apiData.patient_code,
           ward: apiData.ward,
-          dietitianName: apiData.dietitian_name,
+          dietitianName: apiData.dietitian_name || "On-duty Dietitian",
           status: apiData.status,
-          meals: (apiData.items ?? []).map((item: any) => ({
+          meals: (apiData.items ?? []).map((item: any, idx: number) => ({
             mealTime: item.meal_time,
             menuName: item.menu_name,
             tags: item.tags ?? [],
-            note: item.reason ?? "",
+            note: item.reason || getFriendlyNote(item.meal_time, idx),
+            calories: item.calories,
+            sugar: item.sugar,
+            sodium: item.sodium,
+            fat: item.fat,
+            imageUrl: item.image_url,
+            friendlyNote: item.friendly_note || getFriendlyNote(item.meal_time, idx),
           })),
         });
-        setUsingMockData(false);
-      } catch (err) {
-        console.warn("/patient-view not available yet, showing demo data:", err);
-        setData(mockApprovedData);
-        setUsingMockData(true);
+      } catch (err: any) {
+        setError(err.message || "Failed to load menu.");
       } finally {
         setIsLoading(false);
       }
@@ -147,43 +174,40 @@ export default function ApprovedMenu() {
   }, [data]);
 
   return (
-    <div
-      ref={wrapperRef}
-      className="approved-menu-page text-on-surface font-body-md min-h-screen relative overflow-x-hidden selection:bg-primary selection:text-on-primary"
-    >
-      <video autoPlay className="fixed top-0 left-0 w-full h-full object-cover -z-10 brightness-[0.4] grayscale-[0.5]" loop muted playsInline>
-        <source
-          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260315_073750_51473149-4350-4920-ae24-c8214286f323.mp4"
-          type="video/mp4"
+    <div ref={wrapperRef} className="approved-menu-page text-on-surface font-body-md min-h-screen relative overflow-x-hidden selection:bg-primary selection:text-white">
+      {/* background */}
+      <video
+        autoPlay
+        className="fixed inset-0 w-full h-full object-cover z-0"
+        src="https://cdn.sceneai.art/backgrounds/e102a51c-c095-492e-b909-72bb753f83a2.mov"
+        loop
+        muted
+        playsInline
         />
-      </video>
+      
+      {/* Floating Orbs for depth */}
+      <div className="fixed top-20 left-10 w-72 h-72 rounded-full bg-primary/5 blur-3xl animate-float z-0" />
+      <div className="fixed bottom-20 right-10 w-96 h-96 rounded-full bg-tertiary/5 blur-3xl animate-float z-0" style={{ animationDelay: "-3s" }} />
+      <div className="fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] rounded-full bg-primary/3 blur-3xl animate-pulse-soft z-0" />
 
-      <header className="w-full h-20 sticky top-0 z-50 backdrop-blur-xl bg-black/40 border-b border-white/10 flex justify-between items-center px-5 md:px-16">
+      <header className="w-full h-20 sticky top-0 z-50 backdrop-blur-xl bg-white/60 border-b border-white/20 flex justify-between items-center px-5 md:px-16">
         <div className="flex-1 flex justify-start">
-          <button
-            type="button"
-            onClick={() => navigate("/patient/select")}
-            className="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors group"
-          >
+          <button onClick={() => navigate("/patient/select")} className="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors group">
             <span className="material-symbols-outlined text-sm group-hover:-translate-x-1 transition-transform">arrow_back</span>
             <span className="text-label-md font-medium">Back</span>
           </button>
         </div>
         <div className="flex-1 flex justify-center">
-          <h1 className="font-bold text-xl tracking-[0.2em] text-white uppercase leading-none">dietrace</h1>
+          <h1 className="font-bold text-xl tracking-[0.2em] text-on-surface uppercase leading-none">dietrace</h1>
         </div>
         <div className="flex-1 flex justify-end items-center gap-6">
           <div className="flex items-center gap-2 text-on-surface-variant">
-            <button type="button" title="Not available for patient view" className="material-symbols-outlined p-2 rounded-full opacity-40 cursor-default">
-              notifications
-            </button>
-            <button type="button" title="Not available for patient view" className="material-symbols-outlined p-2 rounded-full opacity-40 cursor-default">
-              settings
-            </button>
+            <button title="Not available for patient view" className="material-symbols-outlined p-2 rounded-full opacity-40 cursor-default">notifications</button>
+            <button title="Not available for patient view" className="material-symbols-outlined p-2 rounded-full opacity-40 cursor-default">settings</button>
           </div>
           {data && (
-            <div className="flex items-center gap-3 px-4 py-1.5 rounded-full bg-white/5 border border-white/10">
-              <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center text-xs font-bold text-primary">
+            <div className="flex items-center gap-3 px-4 py-1.5 rounded-full liquid-glass">
+              <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">
                 {getInitials(data.patientName)}
               </div>
               <span className="text-label-md font-medium">Account</span>
@@ -193,16 +217,28 @@ export default function ApprovedMenu() {
       </header>
 
       <main className="relative z-10 max-w-[1280px] mx-auto px-5 md:px-16 py-12 flex flex-col items-center">
-        {isLoading && <div className="text-on-surface-variant text-sm py-20">Loading your menu...</div>}
+        {isLoading && (
+          <div className="flex items-center justify-center gap-3 text-on-surface-variant py-20">
+            <div className="spinner" />
+            <span className="text-sm">Loading your menu...</span>
+          </div>
+        )}
 
         {!isLoading && !patientId && (
           <div className="liquid-glass p-10 rounded-3xl max-w-lg text-center">
             <span className="material-symbols-outlined text-4xl text-on-surface-variant mb-4 block">badge</span>
             <p className="text-on-surface-variant">No patient ID provided. Please go back and enter your ID.</p>
-            <button
-              onClick={() => navigate("/patient/select")}
-              className="mt-6 px-6 py-3 rounded-xl bg-white text-background text-sm font-bold hover:scale-105 transition-transform"
-            >
+            <button onClick={() => navigate("/patient/select")} className="mt-6 px-6 py-3 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary/90 transition-colors">
+              Back to Patient Access
+            </button>
+          </div>
+        )}
+
+        {!isLoading && error && (
+          <div className="liquid-glass p-10 rounded-3xl max-w-lg text-center">
+            <span className="material-symbols-outlined text-4xl text-error mb-4 block">error</span>
+            <p className="text-on-surface mb-2">{error}</p>
+            <button onClick={() => navigate("/patient/select")} className="mt-6 px-6 py-3 rounded-xl border border-white/20 text-on-surface-variant hover:text-primary hover:bg-primary/5 text-sm font-medium transition-all">
               Back to Patient Access
             </button>
           </div>
@@ -210,13 +246,10 @@ export default function ApprovedMenu() {
 
         {!isLoading && patientId && data && data.status !== "approved" && (
           <div className="liquid-glass p-10 rounded-3xl max-w-lg text-center">
-            <span className="material-symbols-outlined text-4xl text-on-surface-variant mb-4 block">hourglass_empty</span>
-            <p className="text-primary font-semibold text-lg mb-2">Your menu is currently pending dietitian review.</p>
+            <span className="material-symbols-outlined text-4xl text-warning mb-4 block">hourglass_empty</span>
+            <p className="text-on-surface font-semibold text-lg mb-2">Your menu is currently pending dietitian review.</p>
             <p className="text-on-surface-variant text-sm">Please check again later.</p>
-            <button
-              onClick={() => navigate("/patient/select")}
-              className="mt-6 px-6 py-3 rounded-xl border border-white/10 text-on-surface-variant hover:text-primary hover:bg-white/5 text-sm font-medium transition-all"
-            >
+            <button onClick={() => navigate("/patient/select")} className="mt-6 px-6 py-3 rounded-xl border border-white/20 text-on-surface-variant hover:text-primary hover:bg-primary/5 text-sm font-medium transition-all">
               Back to Patient Access
             </button>
           </div>
@@ -224,29 +257,22 @@ export default function ApprovedMenu() {
 
         {!isLoading && patientId && data && data.status === "approved" && (
           <>
-            {usingMockData && (
-              <div className="w-full max-w-4xl liquid-glass px-6 py-3 rounded-xl flex items-center gap-3 mb-6 border-l-4 border-l-amber-400/60">
-                <span className="material-symbols-outlined text-amber-400 text-lg">info</span>
-                <span className="text-xs text-on-surface-variant">
-                  Showing demo data — <code className="text-white">/patient-view/{"{id}"}</code> endpoint not reachable yet.
-                </span>
-              </div>
-            )}
-
-            <div className="w-full max-w-4xl liquid-glass p-8 rounded-3xl mb-8">
+            {/* Patient Summary */}
+            <div className="w-full max-w-4xl liquid-glass-strong p-8 rounded-3xl mb-8">
               <div className="flex items-center justify-between mb-6">
                 <div className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-primary">fingerprint</span>
-                  <h3 className="text-lg font-semibold text-primary">Patient Summary</h3>
+                  <h3 className="text-lg font-semibold text-on-surface">Patient Summary</h3>
                 </div>
-                <span className="status-badge-approved px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest">
-                  Approved
-                </span>
+                <div className="flex items-center gap-2">
+                  <span className="material-symbols-outlined text-primary text-sm">verified</span>
+                  <span className="status-badge status-badge--approved">Approved</span>
+                </div>
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Patient Name</label>
-                  <p className="text-xl font-bold text-primary">{data.patientName}</p>
+                  <p className="text-xl font-bold text-on-surface">{data.patientName}</p>
                   <p className="text-sm text-on-surface-variant">
                     ID: {data.patientCode} • Ward: {data.ward}
                   </p>
@@ -254,40 +280,82 @@ export default function ApprovedMenu() {
                 <div className="space-y-1">
                   <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Clinical Oversight</label>
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                      <span className="material-symbols-outlined text-sm">medical_services</span>
+                    <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
+                      <span className="material-symbols-outlined text-sm text-primary">medical_services</span>
                     </div>
-                    <p className="text-sm font-medium text-primary">{data.dietitianName}</p>
+                    <p className="text-sm font-medium text-on-surface">{data.dietitianName}</p>
                   </div>
                 </div>
               </div>
             </div>
 
+            {/* Meal Cards - NO IMAGES, Icon-based design */}
             <div className="w-full max-w-6xl grid grid-cols-1 lg:grid-cols-3 gap-6" style={{ perspective: "1000px" }}>
               {data.meals.map((meal) => {
                 const style = mealStyles[meal.mealTime];
                 return (
                   <div
                     key={meal.mealTime}
-                    className={`tilt-card liquid-glass rounded-3xl p-8 flex flex-col gap-4 border-l-4 ${style.borderColor}`}
-                    style={{ boxShadow: `0 0 30px ${style.glow}` }}
+                    className={`tilt-card liquid-glass rounded-3xl overflow-hidden flex flex-col border-t-4 ${style.borderColor}`}
                   >
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className={`material-symbols-outlined ${style.textColor}`}>{style.icon}</span>
-                      <span className={`text-label-md font-bold ${style.textColor} uppercase tracking-widest`}>{meal.mealTime}</span>
-                    </div>
-                    <h4 className="font-headline-sm text-headline-sm text-primary">{meal.menuName}</h4>
-                    <div className="flex flex-wrap gap-2">
-                      {meal.tags.map((tag) => (
-                        <span key={tag} className="bg-white/5 px-3 py-1 rounded-lg text-[10px] font-bold uppercase text-on-surface-variant border border-white/10">
-                          {tag}
+                    {/* Icon Header (replaces ugly photo) */}
+                    <div className="relative h-40 overflow-hidden flex items-center justify-center" style={{ background: `linear-gradient(135deg, ${style.accentColor}08, ${style.accentColor}15)` }}>
+                      {/* Decorative circles */}
+                      <div className="absolute top-4 right-4 w-20 h-20 rounded-full border border-white/20" />
+                      <div className="absolute bottom-4 left-4 w-12 h-12 rounded-full border border-white/10" />
+                      
+                      {/* Large Icon */}
+                      <div className={`w-20 h-20 rounded-2xl ${style.iconBg} flex items-center justify-center shadow-lg`}>
+                        <span className={`material-symbols-outlined ${style.textColor} text-5xl`}>{style.icon}</span>
+                      </div>
+                      
+                      {/* Meal label */}
+                      <div className="absolute top-4 left-4 flex items-center gap-2">
+                        <span className={`text-label-md font-bold ${style.textColor} uppercase tracking-widest bg-white/60 backdrop-blur-sm px-3 py-1 rounded-full`}>
+                          {meal.mealTime}
                         </span>
-                      ))}
+                      </div>
                     </div>
-                    <div className="p-4 bg-white/5 rounded-xl border border-white/5 mt-2">
-                      <p className="text-sm text-on-surface-variant leading-relaxed">
-                        <span className="italic text-primary">Dietitian's Note:</span> {meal.note}
-                      </p>
+
+                    {/* Content */}
+                    <div className="p-6 flex flex-col gap-4 flex-1">
+                      <h4 className="font-headline-sm text-headline-sm text-on-surface">{meal.menuName}</h4>
+
+                      <div className="flex flex-wrap gap-2">
+                        {meal.tags.map((tag) => (
+                          <span key={tag} className="bg-primary/10 px-3 py-1 rounded-lg text-[10px] font-bold uppercase text-primary border border-primary/20">
+                            {tag}
+                          </span>
+                        ))}
+                      </div>
+
+                      {/* Nutrition Info */}
+                      <div className="grid grid-cols-4 gap-2">
+                        <div className="liquid-glass-clear p-2 rounded-xl text-center">
+                          <p className="text-[10px] text-on-surface-variant uppercase font-bold">Calories</p>
+                          <p className="text-sm font-bold text-on-surface">{meal.calories || "—"}</p>
+                        </div>
+                        <div className="liquid-glass-clear p-2 rounded-xl text-center">
+                          <p className="text-[10px] text-on-surface-variant uppercase font-bold">Sugar</p>
+                          <p className="text-sm font-bold text-on-surface">{meal.sugar || "—"}</p>
+                        </div>
+                        <div className="liquid-glass-clear p-2 rounded-xl text-center">
+                          <p className="text-[10px] text-on-surface-variant uppercase font-bold">Sodium</p>
+                          <p className="text-sm font-bold text-on-surface">{meal.sodium || "—"}</p>
+                        </div>
+                        <div className="liquid-glass-clear p-2 rounded-xl text-center">
+                          <p className="text-[10px] text-on-surface-variant uppercase font-bold">Fat</p>
+                          <p className="text-sm font-bold text-on-surface">{meal.fat || "—"}</p>
+                        </div>
+                      </div>
+
+                      {/* Friendly Note */}
+                      <div className="p-4 liquid-glass-clear rounded-xl border border-primary/10 mt-auto">
+                        <p className="text-sm text-on-surface leading-relaxed">
+                          <span className="font-medium text-primary">Why this meal: </span>
+                          {meal.friendlyNote || meal.note}
+                        </p>
+                      </div>
                     </div>
                   </div>
                 );
@@ -295,11 +363,7 @@ export default function ApprovedMenu() {
             </div>
 
             <div className="w-full max-w-4xl flex flex-col md:flex-row justify-center items-center gap-6 mt-16 pb-12">
-              <button
-                type="button"
-                onClick={() => navigate("/patient/select")}
-                className="px-10 py-4 rounded-xl border border-white/10 text-on-surface-variant hover:text-primary hover:bg-white/5 transition-all text-sm font-medium flex items-center gap-2"
-              >
+              <button onClick={() => navigate("/patient/select")} className="px-10 py-4 rounded-xl liquid-glass text-on-surface-variant hover:text-primary hover:bg-primary/5 transition-all text-sm font-medium flex items-center gap-2">
                 <span className="material-symbols-outlined text-sm">arrow_back</span>
                 Back to Patient Access
               </button>

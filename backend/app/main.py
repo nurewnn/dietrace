@@ -1,44 +1,28 @@
 """
-main.py — FastAPI application entrypoint.
-
-Wires together the database health check, CORS, and routers. Right now
-only the auth router is included since that's all that's built.
-
-HANDOFF NOTE FOR WHOEVER PICKS THIS UP NEXT:
-Add the patient / menu / recommendation / dashboard routers below using the
-exact same pattern as auth_router — import it, then app.include_router(...).
-The expert system itself (rules.py, inference_engine.py, explanation.py)
-plugs into the recommendation router's POST /recommendations/generate/{id}
-endpoint — see SYSTEM_DEVELOPMENT_BLUEPRINT.md Section 7 and Section 16.
-
-STARTUP PASSWORD FIX (see _fix_unhashed_dietitian_passwords below):
-Some dietitian rows were inserted with a plaintext password sitting in
-password_hash instead of a real bcrypt hash. This runs once per server
-start, fixes any row that isn't a real bcrypt hash yet, and is a no-op on
-every run after the first. Convenience over correctness — fine for a
-5-row prototype, would not do this in a real production app (that's what
-a proper migration script is for).
+main.py — FastAPI application entrypoint for Supabase deployment.
 """
 
+import os
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import test_connection, SessionLocal
+from app.database import test_connection, SessionLocal, Base, engine
 from app.models import Dietitian
 from app.auth import router as auth_router, hash_password
 
-# TODO: uncomment as each router gets built (same pattern as auth_router).
-# from app.routers.patients import router as patients_router
-# from app.routers.menus import router as menus_router
-# from app.routers.recommendations import router as recommendations_router
-# from app.routers.dashboard import router as dashboard_router
+# Import routers DIRECTLY from their files (not through package __init__)
+from app.routers.patients import router as patients_router
+from app.routers.menus import router as menus_router
+from app.routers.recommendations import router as recommendations_router
+from app.routers.dashboard import router as dashboard_router
 
 BCRYPT_PREFIXES = ("$2b$", "$2a$", "$2y$")
 
 
 def _fix_unhashed_dietitian_passwords() -> None:
+    """One-time fix for plaintext passwords in Supabase."""
     db = SessionLocal()
     try:
         dietitians = db.query(Dietitian).all()
@@ -57,30 +41,38 @@ def _fix_unhashed_dietitian_passwords() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    _fix_unhashed_dietitian_passwords()
+    Base.metadata.create_all(bind=engine)
+    print("[startup] Database tables verified")
+
+    # _fix_unhashed_dietitian_passwords()  # Run once as a migration, not on every startup
     yield
 
 
-app = FastAPI(title="Dietrace API", lifespan=lifespan)
+app = FastAPI(
+    title="Dietrace API",
+    description="Rule-based expert system for hospital dietary recommendations",
+    version="1.0.0",
+    lifespan=lifespan,
+)
 
-# CORS: required so the Vite dev server can call this API from the browser.
-# Default Vite port is 5173 — update/add origins here once deployed.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5173",
         "http://127.0.0.1:5173",
+        *[origin.strip() for origin in os.getenv("FRONTEND_ORIGINS", "").split(",") if origin.strip()],
     ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
+# Register ALL routers
 app.include_router(auth_router)
-# app.include_router(patients_router)
-# app.include_router(menus_router)
-# app.include_router(recommendations_router)
-# app.include_router(dashboard_router)
+app.include_router(patients_router)
+app.include_router(menus_router)
+app.include_router(recommendations_router)
+app.include_router(dashboard_router)
 
 
 @app.get("/health")
@@ -89,4 +81,13 @@ def health_check():
     return {
         "status": "ok" if db_connected else "error",
         "database": "connected" if db_connected else "disconnected",
+    }
+
+
+@app.get("/")
+def root():
+    return {
+        "message": "Dietrace API",
+        "docs": "/docs",
+        "health": "/health",
     }

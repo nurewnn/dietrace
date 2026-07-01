@@ -116,10 +116,10 @@ class Patient(Base):
     )
 
     health_profile: Mapped[Optional["PatientHealthProfile"]] = relationship(
-        back_populates="patient", uselist=False
+        back_populates="patient", uselist=False, cascade="all, delete-orphan"
     )
     recommendations: Mapped[list["Recommendation"]] = relationship(
-        back_populates="patient"
+        back_populates="patient", cascade="all, delete-orphan"
     )
 
 
@@ -215,10 +215,10 @@ class Recommendation(Base):
         back_populates="reviewed_recommendations"
     )
     items: Mapped[list["RecommendationItem"]] = relationship(
-        back_populates="recommendation"
+        back_populates="recommendation", cascade="all, delete-orphan"
     )
     approval_history: Mapped[list["ApprovalHistory"]] = relationship(
-        back_populates="recommendation"
+        back_populates="recommendation", cascade="all, delete-orphan"
     )
 
 

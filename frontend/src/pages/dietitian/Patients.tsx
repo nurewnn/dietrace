@@ -1,16 +1,47 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-
-const API_BASE_URL = "http://localhost:8000";
+import { API_URL, checkAuth } from "../../lib/api";
 
 const allergyOptions = [
   { label: "Seafood", value: "seafood" },
   { label: "Peanut", value: "nut" },
   { label: "Egg", value: "egg" },
   { label: "Milk", value: "dairy" },
-  { label: "Soy", value: "soy" },
   { label: "Wheat", value: "gluten" },
 ];
+
+const diseaseGuidance: Record<string, { title: string; color: string; bgColor: string; borderColor: string; icon: string; message: string }> = {
+  diabetes: {
+    title: "Diabetes Guidance",
+    color: "text-warning",
+    bgColor: "bg-warning/10",
+    borderColor: "border-warning/20",
+    icon: "medical_services",
+    message: "Glycemic control is a priority for this patient. Menu selection is restricted to low-sugar options only; moderate and high-sugar items are excluded to support stable blood glucose levels.",
+  },
+  hypertension: {
+    title: "Hypertension Guidance",
+    color: "text-error",
+    bgColor: "bg-error/10",
+    borderColor: "border-error/20",
+    icon: "favorite",
+    message: "Blood pressure management requires sodium restriction. Menu selection is limited to low-sodium options only; moderate and high-sodium items are excluded from this patient's plan.",
+  },
+  highCholesterol: {
+    title: "High Cholesterol Guidance",
+    color: "text-info",
+    bgColor: "bg-info/10",
+    borderColor: "border-info/20",
+    icon: "monitor_heart",
+    message: "Lipid management requires fat intake control. Menu selection is limited to low-fat options only; moderate and high-fat items are excluded to support cardiovascular health.",
+  },
+};
+
+const activityGuidance: Record<string, { impact: string; description: string }> = {
+  sedentary: { impact: "Base calories only", description: "Bed rest or minimal movement. No additional caloric allowance." },
+  moderate: { impact: "+10-15% calories", description: "Occasional walking, light duties. Slight increase in energy needs." },
+  active: { impact: "+20-25% calories", description: "Regular physical activity or demanding work. Higher energy requirement." },
+};
 
 export default function Patients() {
   const navigate = useNavigate();
@@ -27,6 +58,7 @@ export default function Patients() {
   const [diabetes, setDiabetes] = useState(false);
   const [hypertension, setHypertension] = useState(false);
   const [highCholesterol, setHighCholesterol] = useState(false);
+  const [noConditions, setNoConditions] = useState(false);
 
   const [category, setCategory] = useState("normal");
   const [trimester, setTrimester] = useState("");
@@ -39,63 +71,43 @@ export default function Patients() {
   const [vegetarian, setVegetarian] = useState(false);
   const [chewingProblem, setChewingProblem] = useState(false);
 
-  // DB-only, no rule currently consumes these — captured for clinical completeness
   const [smokes, setSmokes] = useState(false);
   const [sleepPattern, setSleepPattern] = useState("good");
 
-  const [preferredProtein, setPreferredProtein] = useState("no_preference");
-  const [preferredCarb, setPreferredCarb] = useState("no_preference");
+  const [preferredProtein, setPreferredProtein] = useState("none");
+  const [preferredCarb, setPreferredCarb] = useState("none");
 
   const [notes, setNotes] = useState("");
 
   const [isLoadingExisting, setIsLoadingExisting] = useState(isEditMode);
-  const [usingMockPrefill, setUsingMockPrefill] = useState(false);
+  const [error, setError] = useState("");
+  const [savedPatientId, setSavedPatientId] = useState<string | null>(id ?? null);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitError, setSubmitError] = useState("");
   const [submitSuccess, setSubmitSuccess] = useState(false);
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [generateError, setGenerateError] = useState("");
+  const [menuDate, setMenuDate] = useState<string>(new Date().toISOString().split("T")[0]);
 
-  // Prefill form when editing an existing patient
   useEffect(() => {
-    if (!isEditMode) return;
+    if (!isEditMode) {
+      setIsLoadingExisting(false);
+      return;
+    }
 
     async function loadExisting() {
+      setIsLoadingExisting(true);
+      setError("");
       try {
         const token = localStorage.getItem("dietrace_token");
-        const res = await fetch(`${API_BASE_URL}/patients/${id}`, {
+        const res = await fetch(`${API_URL}/patients/${id}`, {
           headers: token ? { Authorization: `Bearer ${token}` } : {},
         });
-        if (!res.ok) throw new Error(`Endpoint returned ${res.status}`);
+        if (!checkAuth(res, navigate)) return;
+        if (!res.ok) throw new Error(`Server returned ${res.status}: ${res.statusText}`);
         const api = await res.json();
         applyPrefill(api);
-        setUsingMockPrefill(false);
-      } catch (err) {
-        console.warn("GET /patients/:id not available yet, using demo prefill:", err);
-        applyPrefill({
-          patient_code: "DX-8829-C",
-          full_name: "Elena Maria Rodriguez",
-          age: 42,
-          gender: "female",
-          ward: "Cardiac B - 402",
-          admission_date: "2023-10-14",
-          health_profile: {
-            has_diabetes: true,
-            has_hypertension: true,
-            has_hypercholesterolemia: false,
-            allergies: "seafood, nut",
-            food_preference: { protein: "chicken", carbohydrate: "white_rice" },
-            activity_level: "moderate",
-            patient_category: "normal",
-            pregnancy_trimester: null,
-            is_vegetarian: false,
-            has_chewing_problem: false,
-            smokes: false,
-            sleep_pattern: "irregular",
-            weight_kg: 68.5,
-            height_cm: 164,
-            notes: "Patient presents with stable vitals post-admission.",
-          },
-        });
-        setUsingMockPrefill(true);
+      } catch (err: any) {
+        setError(err.message || "Failed to load patient record.");
       } finally {
         setIsLoadingExisting(false);
       }
@@ -112,23 +124,20 @@ export default function Patients() {
       const hp = api.health_profile ?? {};
       setDiabetes(hp.has_diabetes ?? false);
       setHypertension(hp.has_hypertension ?? false);
-      setHighCholesterol(hp.has_hypercholesterolemia ?? false);
+      setHighCholesterol(hp.has_high_cholesterol ?? false);
+      setNoConditions(!(hp.has_diabetes || hp.has_hypertension || hp.has_high_cholesterol));
       setCategory(hp.patient_category ?? "normal");
       setTrimester(hp.pregnancy_trimester ? String(hp.pregnancy_trimester) : "");
       setWeight(hp.weight_kg ? String(hp.weight_kg) : "");
       setHeight(hp.height_cm ? String(hp.height_cm) : "");
-      setAllergies(
-        typeof hp.allergies === "string"
-          ? hp.allergies.split(",").map((a: string) => a.trim()).filter(Boolean)
-          : []
-      );
+      setAllergies(Array.isArray(hp.allergies) ? hp.allergies : []);
       setActivityLevel(hp.activity_level ?? "sedentary");
       setVegetarian(hp.is_vegetarian ?? false);
       setChewingProblem(hp.has_chewing_problem ?? false);
       setSmokes(hp.smokes ?? false);
       setSleepPattern(hp.sleep_pattern ?? "good");
-      setPreferredProtein(hp.food_preference?.protein ?? "no_preference");
-      setPreferredCarb(hp.food_preference?.carbohydrate ?? "no_preference");
+      setPreferredProtein(hp.preferred_protein ?? "none");
+      setPreferredCarb(hp.preferred_carbohydrate ?? "none");
       setNotes(hp.notes ?? "");
     }
 
@@ -141,9 +150,25 @@ export default function Patients() {
     );
   };
 
+  const handleConditionChange = (condition: "diabetes" | "hypertension" | "highCholesterol", value: boolean) => {
+    if (condition === "diabetes") setDiabetes(value);
+    if (condition === "hypertension") setHypertension(value);
+    if (condition === "highCholesterol") setHighCholesterol(value);
+    if (value) setNoConditions(false);
+  };
+
+  const handleNoConditionsChange = (value: boolean) => {
+    setNoConditions(value);
+    if (value) {
+      setDiabetes(false);
+      setHypertension(false);
+      setHighCholesterol(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setSubmitError("");
+    setError("");
     setSubmitSuccess(false);
     setIsSubmitting(true);
 
@@ -159,12 +184,10 @@ export default function Patients() {
     const healthProfilePayload = {
       has_diabetes: diabetes,
       has_hypertension: hypertension,
-      has_hypercholesterolemia: highCholesterol,
-      allergies: allergies.length > 0 ? allergies.join(", ") : null,
-      food_preference: {
-        protein: preferredProtein,
-        carbohydrate: preferredCarb,
-      },
+      has_high_cholesterol: highCholesterol,
+      allergies,
+      preferred_protein: preferredProtein,
+      preferred_carbohydrate: preferredCarb,
       activity_level: activityLevel,
       patient_category: category,
       pregnancy_trimester: category === "pregnant" ? Number(trimester) : null,
@@ -184,72 +207,104 @@ export default function Patients() {
         ...(token ? { Authorization: `Bearer ${token}` } : {}),
       };
 
-      const patientUrl = isEditMode ? `${API_BASE_URL}/patients/${id}` : `${API_BASE_URL}/patients`;
+      const patientUrl = isEditMode ? `${API_URL}/patients/${id}` : `${API_URL}/patients`;
       const patientRes = await fetch(patientUrl, {
         method: isEditMode ? "PUT" : "POST",
         headers,
         body: JSON.stringify(patientPayload),
       });
-      if (!patientRes.ok) throw new Error(`Save patient failed (${patientRes.status})`);
+      if (!checkAuth(patientRes, navigate)) return;
+      if (!patientRes.ok) {
+        const err = await patientRes.json().catch(() => null);
+        throw new Error(err?.detail || `Save patient failed (${patientRes.status})`);
+      }
       const saved = await patientRes.json();
       const targetId = id ?? saved.id ?? saved.patient_code ?? patientCode;
 
-      const profileRes = await fetch(`${API_BASE_URL}/patients/${targetId}/health-profile`, {
+      const profileRes = await fetch(`${API_URL}/patients/${targetId}/health-profile`, {
         method: "PUT",
         headers,
         body: JSON.stringify(healthProfilePayload),
       });
-      if (!profileRes.ok) throw new Error(`Save health profile failed (${profileRes.status})`);
+      if (!checkAuth(profileRes, navigate)) return;
+      if (!profileRes.ok) {
+        const err = await profileRes.json().catch(() => null);
+        throw new Error(err?.detail || `Save health profile failed (${profileRes.status})`);
+      }
 
       setSubmitSuccess(true);
-      setTimeout(() => navigate(isEditMode ? `/dietitian/patients/${id}` : "/dietitian/dashboard"), 1200);
-    } catch (err) {
-      console.warn("Patient routes not ready yet:", err);
-      console.log("Payload that would be sent:", { patientPayload, healthProfilePayload });
-      setSubmitError(
-        `Backend ${isEditMode ? "update" : "create"} route isn't live yet — nothing was actually saved. Full payload logged to console (F12) for your teammate.`
-      );
+      setSavedPatientId(String(targetId));
+    } catch (err: any) {
+      setError(err.message || "Failed to save patient. Please try again.");
     } finally {
       setIsSubmitting(false);
     }
   };
 
+  const handleGenerateRecommendation = async () => {
+    if (!savedPatientId) return;
+    setGenerateError("");
+    setIsGenerating(true);
+    try {
+      const token = localStorage.getItem("dietrace_token");
+      const res = await fetch(
+        `${API_URL}/recommendations/generate/${savedPatientId}?date=${menuDate}`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          },
+        }
+      );
+      if (!checkAuth(res, navigate)) return;
+      if (!res.ok) {
+        const errData = await res.json().catch(() => null);
+        throw new Error(errData?.detail || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      navigate(`/dietitian/recommendation/${data.id}`);
+    } catch (err: any) {
+      setGenerateError(err.message || "Failed to generate recommendation.");
+    } finally {
+      setIsGenerating(false);
+    }
+  };
+
   if (isLoadingExisting) {
     return (
-      <div className="patients-page relative min-h-screen flex items-center justify-center text-on-surface-variant text-sm">
-        Loading patient record...
+      <div className="patients-page relative min-h-screen flex items-center justify-center gap-3 text-on-surface-variant">
+        <div className="spinner" />
+        <span className="text-sm">Loading patient record...</span>
       </div>
     );
   }
 
   return (
     <div className="patients-page relative min-h-screen overflow-x-hidden font-body-md">
-      <video autoPlay className="video-bg" loop muted playsInline>
-        <source
-          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260315_073750_51473149-4350-4920-ae24-c8214286f323.mp4"
-          type="video/mp4"
-        />
-      </video>
+      {/* Background */}
+      <div
+        className="fixed inset-0 z-0"
+        style={{ background: "linear-gradient(135deg, #f8faf8 100%, #ffffff 0%)" }}
+      />
 
-      <header className="w-full h-20 sticky top-0 z-50 backdrop-blur-xl bg-black/40 border-b border-white/10 flex justify-between items-center px-margin-desktop">
+      <header className="w-full h-20 sticky top-0 z-50 backdrop-blur-xl bg-white/80 border-b border-black/5 flex justify-between items-center px-margin-desktop">
         <div className="flex-1 flex justify-start">
           <button
             type="button"
             onClick={() => navigate(-1)}
             className="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors group"
           >
-            <span className="material-symbols-outlined text-sm group-hover:-translate-x-1 transition-transform">
-              arrow_back
-            </span>
+            <span className="material-symbols-outlined text-sm group-hover:-translate-x-1 transition-transform">arrow_back</span>
             <span className="text-label-md font-medium">Back</span>
           </button>
         </div>
         <div className="flex-1 flex justify-center">
-          <h1 className="font-bold text-xl tracking-[0.2em] text-white uppercase leading-none">dietrace</h1>
+          <h1 className="font-bold text-xl tracking-[0.2em] text-on-surface uppercase leading-none">dietrace</h1>
         </div>
         <div className="flex-1 flex justify-end items-center gap-6">
-          <div className="flex items-center gap-3 px-4 py-1.5 rounded-full bg-white/5 border border-white/10">
-            <div className="w-8 h-8 rounded-full bg-sage flex items-center justify-center text-xs font-bold text-background">DR</div>
+          <div className="flex items-center gap-3 px-4 py-1.5 rounded-full bg-black/5 border border-black/10">
+            <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center text-xs font-bold text-primary">DR</div>
             <span className="text-label-md font-medium">Account</span>
           </div>
         </div>
@@ -259,7 +314,7 @@ export default function Patients() {
         <div className="px-margin-desktop py-10 max-w-6xl mx-auto">
           <section className="mb-10 flex justify-between items-end">
             <div>
-              <h2 className="font-headline-md text-3xl text-primary mb-2">
+              <h2 className="font-headline-md text-3xl text-on-surface mb-2">
                 {isEditMode ? "Edit Patient Health Profile" : "Patient Health Profile"}
               </h2>
               <p className="text-on-surface-variant text-sm max-w-2xl">
@@ -268,67 +323,55 @@ export default function Patients() {
             </div>
           </section>
 
-          {usingMockPrefill && (
-            <div className="liquid-glass mb-6 px-6 py-4 rounded-2xl border-l-4 border-l-amber-400/60 flex items-start gap-3">
-              <span className="material-symbols-outlined text-amber-400 text-lg shrink-0">info</span>
-              <p className="text-sm text-on-surface-variant">
-                Showing demo data — patient lookup endpoint not reachable yet. Changes here won't save until your teammate's route is live.
-              </p>
-            </div>
-          )}
-          {submitError && (
-            <div className="liquid-glass mb-6 px-6 py-4 rounded-2xl border-l-4 border-l-red-400 flex items-start gap-3">
-              <span className="material-symbols-outlined text-red-400 text-lg shrink-0">error</span>
-              <p className="text-sm text-on-surface-variant">{submitError}</p>
+          {error && (
+            <div className="liquid-glass mb-6 px-6 py-4 rounded-2xl border-l-4 border-l-error flex items-start gap-3">
+              <span className="material-symbols-outlined text-error text-lg shrink-0">error</span>
+              <p className="text-sm text-on-surface">{error}</p>
             </div>
           )}
           {submitSuccess && (
-            <div className="liquid-glass mb-6 px-6 py-4 rounded-2xl border-l-4 border-l-accent-teal flex items-start gap-3">
-              <span className="material-symbols-outlined text-accent-teal text-lg shrink-0">check_circle</span>
-              <p className="text-sm text-on-surface-variant">Saved. Redirecting...</p>
+            <div className="liquid-glass mb-6 px-6 py-4 rounded-2xl border-l-4 border-l-primary flex items-start justify-between gap-3 flex-wrap">
+              <div className="flex items-start gap-3">
+                <span className="material-symbols-outlined text-primary text-lg shrink-0">check_circle</span>
+                <p className="text-sm text-on-surface">Saved successfully. You can generate a recommendation now.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => navigate(isEditMode ? `/dietitian/patients/${id}` : "/dietitian/dashboard")}
+                className="text-xs font-bold text-primary uppercase tracking-widest hover:underline whitespace-nowrap"
+              >
+                View Patient →
+              </button>
+            </div>
+          )}
+          {generateError && (
+            <div className="liquid-glass mb-6 px-6 py-4 rounded-2xl border-l-4 border-l-warning flex items-start gap-3">
+              <span className="material-symbols-outlined text-warning text-lg shrink-0">info</span>
+              <p className="text-sm text-on-surface">{generateError}</p>
             </div>
           )}
 
           <form className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start" onSubmit={handleSubmit}>
+            {/* LEFT COLUMN */}
             <div className="lg:col-span-7 space-y-6">
+              {/* Patient Identity */}
               <div className="liquid-glass p-8 rounded-3xl">
                 <div className="flex items-center gap-3 mb-6">
-                  <span className="material-symbols-outlined text-accent-teal">fingerprint</span>
-                  <h3 className="text-lg font-semibold text-primary">Patient Identity</h3>
+                  <span className="material-symbols-outlined text-primary">fingerprint</span>
+                  <h3 className="text-lg font-semibold text-on-surface">Patient Identity</h3>
                 </div>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Patient Code</label>
-                    <input
-                      className="w-full px-4 py-3 text-sm"
-                      placeholder="e.g. PX-9082"
-                      type="text"
-                      value={patientCode}
-                      onChange={(e) => setPatientCode(e.target.value)}
-                      required
-                    />
+                    <input className="w-full px-4 py-3 text-sm" placeholder="e.g. PX-9082" type="text" value={patientCode} onChange={(e) => setPatientCode(e.target.value)} required />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Full Name</label>
-                    <input
-                      className="w-full px-4 py-3 text-sm"
-                      placeholder="Full legal name"
-                      type="text"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      required
-                    />
+                    <input className="w-full px-4 py-3 text-sm" placeholder="Full legal name" type="text" value={fullName} onChange={(e) => setFullName(e.target.value)} required />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Age</label>
-                    <input
-                      className="w-full px-4 py-3 text-sm"
-                      placeholder="Years"
-                      type="number"
-                      value={age}
-                      onChange={(e) => setAge(e.target.value)}
-                      required
-                    />
+                    <input className="w-full px-4 py-3 text-sm" placeholder="Years" type="number" value={age} onChange={(e) => setAge(e.target.value)} required />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Gender</label>
@@ -341,66 +384,91 @@ export default function Patients() {
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Ward</label>
-                    <input
-                      className="w-full px-4 py-3 text-sm"
-                      placeholder="Unit / Room"
-                      type="text"
-                      value={ward}
-                      onChange={(e) => setWard(e.target.value)}
-                    />
+                    <input className="w-full px-4 py-3 text-sm" placeholder="Unit / Room" type="text" value={ward} onChange={(e) => setWard(e.target.value)} />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Admission Date</label>
-                    <input
-                      className="w-full px-4 py-3 text-sm"
-                      type="date"
-                      value={admissionDate}
-                      onChange={(e) => setAdmissionDate(e.target.value)}
-                    />
+                    <input className="w-full px-4 py-3 text-sm" type="date" value={admissionDate} onChange={(e) => setAdmissionDate(e.target.value)} />
                   </div>
                 </div>
               </div>
 
+              {/* Medical Conditions */}
               <div className="liquid-glass p-8 rounded-3xl">
                 <div className="flex items-center gap-3 mb-6">
-                  <span className="material-symbols-outlined text-accent-teal">clinical_notes</span>
-                  <h3 className="text-lg font-semibold text-primary">Medical Conditions</h3>
+                  <span className="material-symbols-outlined text-primary">clinical_notes</span>
+                  <h3 className="text-lg font-semibold text-on-surface">Medical Conditions</h3>
                 </div>
+
+                {/* No Conditions Option */}
+                <label className="flex items-center gap-3 p-3.5 rounded-xl bg-primary/5 border border-primary/10 cursor-pointer hover:bg-primary/10 transition-all mb-4">
+                  <input
+                    type="checkbox"
+                    checked={noConditions}
+                    onChange={(e) => handleNoConditionsChange(e.target.checked)}
+                    className="w-4 h-4 rounded border-black/20 text-primary focus:ring-primary"
+                  />
+                  <span className="text-on-surface text-sm font-medium">No Chronic Conditions</span>
+                </label>
+
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-                  <label className="flex items-center gap-3 p-3.5 rounded-xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-all">
-                    <input
-                      className="w-4 h-4 rounded border-white/20 bg-transparent text-accent-teal focus:ring-accent-teal"
-                      type="checkbox"
-                      checked={diabetes}
-                      onChange={(e) => setDiabetes(e.target.checked)}
-                    />
-                    <span className="text-on-surface text-sm font-medium">Diabetes</span>
-                  </label>
-                  <label className="flex items-center gap-3 p-3.5 rounded-xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-all">
-                    <input
-                      className="w-4 h-4 rounded border-white/20 bg-transparent text-accent-teal focus:ring-accent-teal"
-                      type="checkbox"
-                      checked={hypertension}
-                      onChange={(e) => setHypertension(e.target.checked)}
-                    />
-                    <span className="text-on-surface text-sm font-medium">Hypertension</span>
-                  </label>
-                  <label className="flex items-center gap-3 p-3.5 rounded-xl bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-all">
-                    <input
-                      className="w-4 h-4 rounded border-white/20 bg-transparent text-accent-teal focus:ring-accent-teal"
-                      type="checkbox"
-                      checked={highCholesterol}
-                      onChange={(e) => setHighCholesterol(e.target.checked)}
-                    />
-                    <span className="text-on-surface text-sm font-medium">High Cholesterol</span>
-                  </label>
+                  {[
+                    { key: "diabetes" as const, label: "Diabetes", state: diabetes, setter: setDiabetes },
+                    { key: "hypertension" as const, label: "Hypertension", state: hypertension, setter: setHypertension },
+                    { key: "highCholesterol" as const, label: "High Cholesterol", state: highCholesterol, setter: setHighCholesterol },
+                  ].map((c) => (
+                    <label key={c.key} className={`flex items-center gap-3 p-3.5 rounded-xl border cursor-pointer transition-all ${
+                      c.state ? "bg-primary/5 border-primary/20" : "bg-black/5 border-black/5 hover:bg-black/10"
+                    }`}>
+                      <input
+                        type="checkbox"
+                        checked={c.state}
+                        onChange={(e) => handleConditionChange(c.key, e.target.checked)}
+                        disabled={noConditions}
+                        className="w-4 h-4 rounded border-black/20 text-primary focus:ring-primary disabled:opacity-30"
+                      />
+                      <span className="text-on-surface text-sm font-medium">{c.label}</span>
+                    </label>
+                  ))}
+                </div>
+
+                {/* Disease Guidance Cards */}
+                <div className="mt-4 space-y-3">
+                  {diabetes && (
+                    <div className={`p-4 rounded-xl ${diseaseGuidance.diabetes.bgColor} border ${diseaseGuidance.diabetes.borderColor} flex gap-3`}>
+                      <span className={`material-symbols-outlined ${diseaseGuidance.diabetes.color}`}>{diseaseGuidance.diabetes.icon}</span>
+                      <div>
+                        <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${diseaseGuidance.diabetes.color}`}>{diseaseGuidance.diabetes.title}</p>
+                        <p className="text-sm text-on-surface leading-relaxed">{diseaseGuidance.diabetes.message}</p>
+                      </div>
+                    </div>
+                  )}
+                  {hypertension && (
+                    <div className={`p-4 rounded-xl ${diseaseGuidance.hypertension.bgColor} border ${diseaseGuidance.hypertension.borderColor} flex gap-3`}>
+                      <span className={`material-symbols-outlined ${diseaseGuidance.hypertension.color}`}>{diseaseGuidance.hypertension.icon}</span>
+                      <div>
+                        <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${diseaseGuidance.hypertension.color}`}>{diseaseGuidance.hypertension.title}</p>
+                        <p className="text-sm text-on-surface leading-relaxed">{diseaseGuidance.hypertension.message}</p>
+                      </div>
+                    </div>
+                  )}
+                  {highCholesterol && (
+                    <div className={`p-4 rounded-xl ${diseaseGuidance.highCholesterol.bgColor} border ${diseaseGuidance.highCholesterol.borderColor} flex gap-3`}>
+                      <span className={`material-symbols-outlined ${diseaseGuidance.highCholesterol.color}`}>{diseaseGuidance.highCholesterol.icon}</span>
+                      <div>
+                        <p className={`text-xs font-bold uppercase tracking-widest mb-1 ${diseaseGuidance.highCholesterol.color}`}>{diseaseGuidance.highCholesterol.title}</p>
+                        <p className="text-sm text-on-surface leading-relaxed">{diseaseGuidance.highCholesterol.message}</p>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
+              {/* Patient Category */}
               <div className="liquid-glass p-8 rounded-3xl">
                 <div className="flex items-center gap-3 mb-6">
-                  <span className="material-symbols-outlined text-accent-teal">category</span>
-                  <h3 className="text-lg font-semibold text-primary">Patient Category</h3>
+                  <span className="material-symbols-outlined text-primary">category</span>
+                  <h3 className="text-lg font-semibold text-on-surface">Patient Category</h3>
                 </div>
                 <div className="space-y-4">
                   <div className="flex flex-col gap-1.5">
@@ -408,144 +476,61 @@ export default function Patients() {
                     <select className="w-full px-4 py-3 text-sm" value={category} onChange={(e) => setCategory(e.target.value)}>
                       <option value="normal">Normal</option>
                       <option value="pregnant">Pregnant</option>
-                      <option value="preop">Pre-Operation</option>
-                      <option value="postop">Post-Operation</option>
+                      <option value="pre_operation">Pre-Operation</option>
+                      <option value="post_operation">Post-Operation</option>
                     </select>
                   </div>
                   {category === "pregnant" && (
                     <div className="flex flex-col gap-1.5">
                       <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Pregnancy Trimester</label>
-                      <input
-                        className="w-full px-4 py-3 text-sm"
-                        max={3}
-                        min={1}
-                        placeholder="1-3"
-                        type="number"
-                        value={trimester}
-                        onChange={(e) => setTrimester(e.target.value)}
-                        required
-                      />
+                      <input className="w-full px-4 py-3 text-sm" max={3} min={1} placeholder="1-3" type="number" value={trimester} onChange={(e) => setTrimester(e.target.value)} required />
                     </div>
                   )}
                 </div>
               </div>
 
+              {/* Clinical Notes */}
               <div className="liquid-glass p-8 rounded-3xl">
                 <div className="flex items-center gap-3 mb-6">
-                  <span className="material-symbols-outlined text-accent-teal">bedtime</span>
-                  <h3 className="text-lg font-semibold text-primary">Lifestyle Details</h3>
-                </div>
-                <p className="text-[11px] text-on-surface-variant/60 italic mb-4">
-                  Captured for clinical completeness — not currently used by any rule in the inference engine.
-                </p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <label className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
-                    <span className="text-xs font-medium">Smoker</span>
-                    <input
-                      className="w-4 h-4 rounded border-white/20 bg-transparent text-accent-teal focus:ring-accent-teal"
-                      type="checkbox"
-                      checked={smokes}
-                      onChange={(e) => setSmokes(e.target.checked)}
-                    />
-                  </label>
-                  <div className="flex flex-col gap-1.5">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Sleep Pattern</label>
-                    <select className="w-full px-4 py-3 text-sm" value={sleepPattern} onChange={(e) => setSleepPattern(e.target.value)}>
-                      <option value="good">Good</option>
-                      <option value="irregular">Irregular</option>
-                      <option value="poor">Poor</option>
-                    </select>
-                  </div>
-                </div>
-              </div>
-
-              <div className="liquid-glass p-8 rounded-3xl">
-                <div className="flex items-center gap-3 mb-6">
-                  <span className="material-symbols-outlined text-accent-teal">description</span>
-                  <h3 className="text-lg font-semibold text-primary">Notes</h3>
+                  <span className="material-symbols-outlined text-primary">description</span>
+                  <h3 className="text-lg font-semibold text-on-surface">Clinical Notes</h3>
                 </div>
                 <textarea
-                  className="w-full h-24 px-4 py-3 text-sm resize-none"
-                  placeholder="Clinical observations..."
+                  className="w-full h-32 px-4 py-3 text-sm resize-none"
+                  placeholder="Clinical observations, special instructions, or any additional notes..."
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
                 />
               </div>
             </div>
 
+            {/* RIGHT COLUMN */}
             <div className="lg:col-span-5 space-y-6">
+              {/* Body Measurements */}
               <div className="liquid-glass p-8 rounded-3xl">
                 <div className="flex items-center gap-3 mb-6">
-                  <span className="material-symbols-outlined text-accent-teal">straighten</span>
-                  <h3 className="text-lg font-semibold text-primary">Body Measurements</h3>
+                  <span className="material-symbols-outlined text-primary">straighten</span>
+                  <h3 className="text-lg font-semibold text-on-surface">Body Measurements</h3>
                 </div>
                 <div className="grid grid-cols-2 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Weight (kg)</label>
-                    <input
-                      className="w-full px-4 py-3 text-sm"
-                      step="0.1"
-                      type="number"
-                      value={weight}
-                      onChange={(e) => setWeight(e.target.value)}
-                      required
-                    />
+                    <input className="w-full px-4 py-3 text-sm" step="0.1" type="number" value={weight} onChange={(e) => setWeight(e.target.value)} required />
                   </div>
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Height (cm)</label>
-                    <input
-                      className="w-full px-4 py-3 text-sm"
-                      step="0.1"
-                      type="number"
-                      value={height}
-                      onChange={(e) => setHeight(e.target.value)}
-                      required
-                    />
+                    <input className="w-full px-4 py-3 text-sm" step="0.1" type="number" value={height} onChange={(e) => setHeight(e.target.value)} required />
                   </div>
                 </div>
               </div>
 
+              {/* Lifestyle */}
               <div className="liquid-glass p-8 rounded-3xl">
                 <div className="flex items-center gap-3 mb-6">
-                  <span className="material-symbols-outlined text-accent-teal">warning</span>
-                  <h3 className="text-lg font-semibold text-primary">Allergy &amp; Dietary</h3>
+                  <span className="material-symbols-outlined text-primary">fitness_center</span>
+                  <h3 className="text-lg font-semibold text-on-surface">Lifestyle</h3>
                 </div>
-                <div className="space-y-5">
-                  <div className="flex flex-col gap-3">
-                    <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">
-                      Allergies (Select All That Apply)
-                    </label>
-                    <div className="grid grid-cols-2 gap-2">
-                      {allergyOptions.map((opt) => (
-                        <label
-                          key={opt.value}
-                          className="flex items-center gap-3 p-2.5 rounded-lg bg-white/5 border border-white/10 cursor-pointer hover:bg-white/10 transition-all"
-                        >
-                          <input
-                            className="w-4 h-4 rounded border-white/20 bg-transparent text-accent-teal focus:ring-accent-teal"
-                            type="checkbox"
-                            checked={allergies.includes(opt.value)}
-                            onChange={() => toggleAllergy(opt.value)}
-                          />
-                          <span className="text-xs font-medium">{opt.label}</span>
-                        </label>
-                      ))}
-                    </div>
-                    {allergies.length > 0 && (
-                      <div className="flex flex-wrap gap-2 pt-2 border-t border-white/10">
-                        {allergies.map((value) => {
-                          const opt = allergyOptions.find((o) => o.value === value);
-                          return (
-                            <span key={value} className="tag-chip px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 uppercase">
-                              {opt?.label}
-                              <button type="button" onClick={() => toggleAllergy(value)} className="hover:text-white">×</button>
-                            </span>
-                          );
-                        })}
-                      </div>
-                    )}
-                  </div>
-
+                <div className="space-y-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Activity Level</label>
                     <select className="w-full px-4 py-3 text-sm" value={activityLevel} onChange={(e) => setActivityLevel(e.target.value)}>
@@ -555,34 +540,101 @@ export default function Patients() {
                     </select>
                   </div>
 
-                  <div className="grid grid-cols-2 gap-3">
-                    <label className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
-                      <span className="text-xs font-medium">Vegetarian</span>
-                      <input
-                        className="w-4 h-4 rounded border-white/20 bg-transparent text-accent-teal focus:ring-accent-teal"
-                        type="checkbox"
-                        checked={vegetarian}
-                        onChange={(e) => setVegetarian(e.target.checked)}
-                      />
+                  {/* Activity Level Guidance */}
+                  <div className="p-3 rounded-xl bg-primary/5 border border-primary/10">
+                    <p className="text-[10px] font-bold text-primary uppercase tracking-widest mb-1">{activityGuidance[activityLevel].impact}</p>
+                    <p className="text-xs text-on-surface-variant">{activityGuidance[activityLevel].description}</p>
+                  </div>
+
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Sleep Pattern</label>
+                    <select className="w-full px-4 py-3 text-sm" value={sleepPattern} onChange={(e) => setSleepPattern(e.target.value)}>
+                      <option value="good">Good</option>
+                      <option value="irregular">Irregular</option>
+                      <option value="poor">Poor</option>
+                    </select>
+                  </div>
+                  <div className="grid grid-cols-3 gap-3">
+                    <label className="flex items-center justify-between p-3 rounded-xl bg-black/5 border border-black/5">
+                      <span className="text-xs font-medium">Smoker</span>
+                      <input type="checkbox" checked={smokes} onChange={(e) => setSmokes(e.target.checked)} className="w-4 h-4 rounded border-black/20 text-primary focus:ring-primary" />
                     </label>
-                    <label className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/10">
-                      <span className="text-xs font-medium">Chewing Problem</span>
-                      <input
-                        className="w-4 h-4 rounded border-white/20 bg-transparent text-accent-teal focus:ring-accent-teal"
-                        type="checkbox"
-                        checked={chewingProblem}
-                        onChange={(e) => setChewingProblem(e.target.checked)}
-                      />
+                    <label className="flex items-center justify-between p-3 rounded-xl bg-black/5 border border-black/5">
+                      <span className="text-xs font-medium">Vegetarian</span>
+                      <input type="checkbox" checked={vegetarian} onChange={(e) => setVegetarian(e.target.checked)} className="w-4 h-4 rounded border-black/20 text-primary focus:ring-primary" />
+                    </label>
+                    <label className="flex items-center justify-between p-3 rounded-xl bg-black/5 border border-black/5">
+                      <span className="text-xs font-medium">Chewing</span>
+                      <input type="checkbox" checked={chewingProblem} onChange={(e) => setChewingProblem(e.target.checked)} className="w-4 h-4 rounded border-black/20 text-primary focus:ring-primary" />
                     </label>
                   </div>
                 </div>
               </div>
 
+              {/* Allergy & Dietary */}
               <div className="liquid-glass p-8 rounded-3xl">
                 <div className="flex items-center gap-3 mb-6">
-                  <span className="material-symbols-outlined text-accent-teal">restaurant</span>
-                  <h3 className="text-lg font-semibold text-primary">Dietary Preference</h3>
+                  <span className="material-symbols-outlined text-error">warning</span>
+                  <h3 className="text-lg font-semibold text-on-surface">Allergy &amp; Dietary</h3>
                 </div>
+
+                {/* Critical Allergy Warning */}
+                <div className="mb-5 p-4 rounded-xl bg-error/10 border border-error/20 flex gap-3">
+                  <span className="material-symbols-outlined text-error shrink-0">gpp_maybe</span>
+                  <div>
+                    <p className="text-xs font-bold text-error uppercase tracking-widest mb-1">Critical Safety Rule</p>
+                    <p className="text-xs text-on-surface leading-relaxed">
+                      Allergy safety has the highest priority. Any menu with matching allergy tags will be immediately excluded by the inference engine. This rule cannot be overridden by preferences or conditions.
+                    </p>
+                  </div>
+                </div>
+
+                <div className="space-y-5">
+                  <div className="flex flex-col gap-3">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Allergies (Select All That Apply)</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {allergyOptions.map((opt) => (
+                        <label key={opt.value} className="flex items-center gap-3 p-2.5 rounded-lg bg-black/5 border border-black/5 cursor-pointer hover:bg-black/10 transition-all">
+                          <input type="checkbox" checked={allergies.includes(opt.value)} onChange={() => toggleAllergy(opt.value)} className="w-4 h-4 rounded border-black/20 text-primary focus:ring-primary" />
+                          <span className="text-xs font-medium">{opt.label}</span>
+                        </label>
+                      ))}
+                    </div>
+                    {allergies.length > 0 && (
+                      <div className="flex flex-wrap gap-2 pt-2 border-t border-black/5">
+                        {allergies.map((value) => {
+                          const opt = allergyOptions.find((o) => o.value === value);
+                          return (
+                            <span key={value} className="tag-chip px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 uppercase">
+                              {opt?.label}
+                              <button type="button" onClick={() => toggleAllergy(value)} className="hover:text-error">×</button>
+                            </span>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              {/* Dietary Preference */}
+              <div className="liquid-glass p-8 rounded-3xl">
+                <div className="flex items-center gap-3 mb-6">
+                  <span className="material-symbols-outlined text-warning">restaurant</span>
+                  <h3 className="text-lg font-semibold text-on-surface">Dietary Preference</h3>
+                </div>
+
+                {/* Preference Note */}
+                <div className="mb-5 p-4 rounded-xl bg-warning/10 border border-warning/20 flex gap-3">
+                  <span className="material-symbols-outlined text-warning shrink-0">info</span>
+                  <div>
+                    <p className="text-xs font-bold text-warning uppercase tracking-widest mb-1">Soft Constraint Note</p>
+                    <p className="text-xs text-on-surface leading-relaxed">
+                      Patient preference is a soft constraint. The system will try to honor it, but safety rules (allergies, medical conditions) always take priority. If preferences conflict with safety, safe menus will be chosen automatically.
+                    </p>
+                  </div>
+                </div>
+
                 <div className="grid grid-cols-1 gap-4">
                   <div className="flex flex-col gap-1.5">
                     <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Preferred Protein</label>
@@ -591,7 +643,7 @@ export default function Patients() {
                       <option value="fish">Fish</option>
                       <option value="egg">Egg</option>
                       <option value="tofu">Tofu</option>
-                      <option value="no_preference">No Preference</option>
+                      <option value="none">No Preference</option>
                     </select>
                   </div>
                   <div className="flex flex-col gap-1.5">
@@ -599,34 +651,52 @@ export default function Patients() {
                     <select className="w-full px-4 py-3 text-sm" value={preferredCarb} onChange={(e) => setPreferredCarb(e.target.value)}>
                       <option value="white_rice">White Rice</option>
                       <option value="noodle">Noodle</option>
-                      <option value="no_preference">No Preference</option>
+                      <option value="none">No Preference</option>
                     </select>
                   </div>
                 </div>
               </div>
             </div>
 
+            {/* FOOTER BUTTONS */}
             <div className="lg:col-span-12 flex flex-col md:flex-row items-center justify-end gap-4 pt-4 pb-20">
               <button
                 type="button"
                 onClick={() => navigate(isEditMode ? `/dietitian/patients/${id}` : "/dietitian/dashboard")}
-                className="px-8 py-4 rounded-xl border border-white/10 text-on-surface-variant hover:text-primary hover:bg-white/5 transition-all text-sm font-medium"
+                className="px-8 py-4 rounded-xl border border-black/10 text-on-surface-variant hover:text-primary hover:bg-primary/5 transition-all text-sm font-medium"
               >
                 Cancel
               </button>
+
+              {/* Menu Date Picker - Only one, in footer */}
+              <div className="flex items-center gap-3">
+                <span className="material-symbols-outlined text-primary text-sm">calendar_today</span>
+                <div className="flex flex-col">
+                  <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">Menu Date</label>
+                  <input
+                    type="date"
+                    value={menuDate}
+                    onChange={(e) => setMenuDate(e.target.value)}
+                    className="bg-black/5 border border-black/10 rounded-lg px-3 py-2 text-sm text-on-surface focus:border-primary focus:outline-none transition-all"
+                  />
+                </div>
+              </div>
+
               <button
                 type="button"
-                disabled
-                title="Available once this patient is saved and the inference engine is connected"
-                className="group flex items-center gap-2 px-8 py-4 rounded-xl bg-accent-teal/10 border border-accent-teal/20 text-accent-teal/60 cursor-not-allowed text-sm font-medium"
+                onClick={handleGenerateRecommendation}
+                disabled={!savedPatientId || isGenerating}
+                title={!savedPatientId ? "Save this patient first" : undefined}
+                className="group flex items-center gap-2 px-8 py-4 rounded-xl bg-primary/10 border border-primary/20 text-primary enabled:hover:bg-primary/20 transition-all text-sm font-medium disabled:text-primary/40 disabled:cursor-not-allowed"
               >
                 <span className="material-symbols-outlined text-base">auto_awesome</span>
-                Generate Recommendation
+                {isGenerating ? "Generating..." : "Generate Recommendation"}
               </button>
+
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="group flex items-center gap-3 px-10 py-4 rounded-xl bg-white text-background hover:bg-accent-teal hover:scale-[1.02] active:scale-95 transition-all duration-300 text-sm font-bold shadow-xl shadow-black/40 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className="group flex items-center gap-3 px-10 py-4 rounded-xl bg-primary text-white hover:bg-primary/90 hover:scale-[1.02] active:scale-95 transition-all duration-300 text-sm font-bold shadow-lg shadow-primary/20 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
               >
                 {isSubmitting ? "Saving..." : isEditMode ? "Update Patient Profile" : "Save Patient Profile"}
                 {!isSubmitting && (

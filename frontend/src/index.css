@@ -1,69 +1,74 @@
 @import "tailwindcss";
 
 @theme {
-  --color-inverse-primary: #5d5f5f;
-  --color-on-error-container: #ffdad6;
-  --color-secondary-fixed-dim: #c8c6c6;
-  --color-on-tertiary-fixed-variant: #454747;
-  --color-surface-container-lowest: #0e0e0e;
-  --color-primary-container: #e2e2e2;
-  --color-surface-container-low: #1c1b1b;
-  --color-on-surface: #e5e2e1;
-  --color-on-surface-variant: #c4c7c8;
-  --color-secondary-container: #494949;
-  --color-on-background: #e5e2e1;
-  --color-on-primary-fixed: #1a1c1c;
-  --color-background: #141313;
-  --color-outline: #8e9192;
-  --color-on-primary: #2f3131;
-  --color-on-secondary-fixed-variant: #474747;
-  --color-secondary: #c8c6c6;
-  --color-on-primary-container: #636565;
-  --color-surface-bright: #3a3939;
-  --color-primary-fixed: #e2e2e2;
-  --color-error-container: #93000a;
-  --color-on-tertiary-container: #636565;
-  --color-surface-dim: #141313;
-  --color-outline-variant: #444748;
-  --color-tertiary-fixed: #e2e2e2;
-  --color-inverse-on-surface: #313030;
-  --color-on-secondary-fixed: #1b1c1c;
-  --color-tertiary: #ffffff;
-  --color-primary-fixed-dim: #c6c6c7;
-  --color-surface-container-high: #2a2a2a;
-  --color-on-tertiary-fixed: #1a1c1c;
-  --color-error: #ffb4ab;
-  --color-surface-container-highest: #353434;
-  --color-on-tertiary: #2f3131;
-  --color-on-primary-fixed-variant: #454747;
-  --color-on-secondary-container: #b9b8b8;
-  --color-on-secondary: #303030;
-  --color-surface-tint: #c6c6c7;
-  --color-inverse-surface: #e5e2e1;
-  --color-surface-variant: #353434;
-  --color-tertiary-fixed-dim: #c6c6c7;
-  --color-primary: #ffffff;
-  --color-secondary-fixed: #e4e2e2;
-  --color-surface: #141313;
-  --color-on-error: #690005;
-  --color-surface-container: #201f1f;
-  --color-tertiary-container: #e2e2e2;
-  --color-accent-teal: #00f2ff;
-  --color-warning: #ffb300;
-  --color-success: #00e676;
-  --color-info: #2979ff;
-  --color-sage: #86a697;
-  
+  /* ── Primary Palette: Medical Green + White ── */
+  --color-background: #f8faf8;
+  --color-surface: #ffffff;
+  --color-surface-container: rgba(0, 0, 0, 0.03);
+  --color-surface-container-low: rgba(0, 0, 0, 0.02);
+  --color-surface-container-high: rgba(0, 0, 0, 0.05);
+  --color-surface-container-highest: rgba(0, 0, 0, 0.08);
+  --color-surface-bright: #ffffff;
+  --color-surface-dim: #f0f2f0;
+  --color-surface-variant: #e8ebe8;
+  --color-surface-tint: #2E7D32;
 
-  --radius-DEFAULT: 0.25rem;
-  --radius-lg: 0.5rem;
-  --radius-xl: 0.75rem;
+  --color-primary: #2E7D32;
+  --color-primary-container: rgba(46, 125, 50, 0.12);
+  --color-on-primary: #ffffff;
+  --color-on-primary-container: #1b5e20;
+  --color-primary-fixed: #e8f5e9;
+  --color-primary-fixed-dim: #c8e6c9;
+  --color-on-primary-fixed: #1b5e20;
+  --color-on-primary-fixed-variant: #2e7d32;
+
+  --color-secondary: #5a5a5a;
+  --color-secondary-container: rgba(0, 0, 0, 0.06);
+  --color-on-secondary: #ffffff;
+  --color-secondary-fixed: #f5f5f5;
+  --color-secondary-fixed-dim: #e0e0e0;
+  --color-on-secondary-fixed: #1a1a1a;
+  --color-on-secondary-fixed-variant: #5a5a5a;
+  --color-on-secondary-container: #424242;
+
+  --color-tertiary: #43A047;
+  --color-tertiary-container: rgba(67, 160, 71, 0.12);
+  --color-on-tertiary: #ffffff;
+  --color-tertiary-fixed: #e8f5e9;
+  --color-tertiary-fixed-dim: #c8e6c9;
+  --color-on-tertiary-fixed: #1b5e20;
+  --color-on-tertiary-fixed-variant: #2e7d32;
+  --color-on-tertiary-container: #1b5e20;
+
+  --color-error: #C62828;
+  --color-error-container: rgba(198, 40, 40, 0.1);
+  --color-on-error: #ffffff;
+  --color-on-error-container: #b71c1c;
+
+  --color-warning: #F57C00;
+  --color-success: #2E7D32;
+  --color-info: #1976D2;
+  --color-sage: #66BB6A;
+  --color-accent-teal: #43A047;
+
+  --color-on-surface: #1a1a1a;
+  --color-on-surface-variant: #5a5a5a;
+  --color-on-background: #1a1a1a;
+  --color-outline: #c8c8c8;
+  --color-outline-variant: #e0e0e0;
+  --color-inverse-surface: #2e2e2e;
+  --color-inverse-on-surface: #f5f5f5;
+  --color-inverse-primary: #a5d6a7;
+
+  --radius-DEFAULT: 0.5rem;
+  --radius-lg: 0.75rem;
+  --radius-xl: 1rem;
   --radius-full: 9999px;
 
   --font-caption-bold: "Poppins", sans-serif;
   --text-caption-bold: 10px;
   --text-caption-bold--line-height: 1;
-  --text-caption-bold--letter-spacing: 0.2em;
+  --text-caption-bold--letter-spacing: 0.15em;
   --text-caption-bold--font-weight: 700;
 
   --font-headline-md: "Poppins", sans-serif;
@@ -115,31 +120,39 @@ body {
   font-family: "Poppins", sans-serif;
 }
 
+/* ── Glassmorphism for White Theme ── */
 .liquid-glass {
   backdrop-filter: blur(20px);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.06);
 }
+
 .liquid-glass-strong {
   backdrop-filter: blur(40px);
-  background: rgba(255, 255, 255, 0.12);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.4);
+  background: rgba(255, 255, 255, 0.85);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
 }
+
 .liquid-glass-clear {
   backdrop-filter: blur(8px);
-  background: rgba(255, 255, 255, 0.03);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(0, 0, 0, 0.06);
 }
+
+/* ── Animations ── */
 .hover-lift {
   transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 .hover-lift:hover {
-  transform: scale(1.05);
+  transform: scale(1.02);
 }
+
 .text-glow {
-  text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+  text-shadow: 0 0 20px rgba(46, 125, 50, 0.15);
 }
+
 @keyframes float {
   0%, 100% { transform: translateY(0px); }
   50% { transform: translateY(-10px); }
@@ -148,157 +161,436 @@ body {
   animation: float 6s ease-in-out infinite;
 }
 
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.6s ease-out forwards;
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+/* ── Video Background ── */
 .video-bg {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-    z-index: -1;
-    filter: brightness(0.4) grayscale(0.5);
-  }
-  
-  .perspective-container {
-    perspective: 1000px;
-  }
-  
-  .tilt-card {
-    transition: transform 0.2s ease-out;
-    transform-style: preserve-3d;
-  }
-  
-  .material-symbols-outlined {
-    font-family: 'Material Symbols Outlined';
-    font-variation-settings: 'FILL' 0, 'wght' 300, 'GRAD' 0, 'opsz' 24;
-  }
-  
-  .glass-input:focus {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: #00f2ff;
-    box-shadow: 0 0 20px rgba(0, 242, 255, 0.15);
-    outline: none;
-  }
-  
-  /* Scoped so this page's liquid-glass doesn't clash with Welcome's liquid-glass */
-  .patient-access-page .liquid-glass {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-  }
-  
-  .dietitian-login-page .liquid-glass {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-  }
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  z-index: -1;
+}
 
-  .dietitian-dashboard-page .liquid-glass-panel {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-    transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  }
-  
-  .dietitian-dashboard-page .liquid-glass-panel:hover {
-    border-color: rgba(255, 255, 255, 0.15);
-    background: rgba(255, 255, 255, 0.05);
-  }
-  
-  .dietitian-dashboard-page .glass-card-nested {
-    background: rgba(255, 255, 255, 0.05);
-    backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  
-  .dietitian-dashboard-page .custom-scrollbar::-webkit-scrollbar {
-    width: 4px;
-  }
-  .dietitian-dashboard-page .custom-scrollbar::-webkit-scrollbar-track {
-    background: transparent;
-  }
-  .dietitian-dashboard-page .custom-scrollbar::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 10px;
-  }
-  
-  .dietitian-dashboard-page .action-button-gradient {
-    background: #ffffff;
-    color: #0e0e0e;
-    transition: all 0.3s ease;
-  }
-  .dietitian-dashboard-page .action-button-gradient:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 4px 20px rgba(255, 255, 255, 0.2);
-  }
-  
-  .dietitian-dashboard-page .metric-value {
-    color: #ffffff;
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.5);
-  }
+.video-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(135deg, rgba(46, 125, 50, 0.15), rgba(255, 255, 255, 0.85));
+  z-index: 0;
+}
 
-  .patients-page .liquid-glass {
-    background: rgba(255, 255, 255, 0.03);
-    backdrop-filter: blur(24px);
-    -webkit-backdrop-filter: blur(24px);
-    border: 1px solid rgba(255, 255, 255, 0.08);
-    box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
-  }
-  
-  .patients-page input[type="text"],
-  .patients-page input[type="number"],
-  .patients-page input[type="date"],
-  .patients-page select,
-  .patients-page textarea {
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: #ffffff;
-    border-radius: 0.75rem;
-    transition: all 0.2s ease;
-  }
-  
-  .patients-page input:focus,
-  .patients-page select:focus,
-  .patients-page textarea:focus {
-    background: rgba(255, 255, 255, 0.08);
-    border-color: #00f2ff;
-    outline: none;
-    box-shadow: 0 0 20px rgba(0, 242, 255, 0.15);
-  }
-  
-  .patients-page .tag-chip {
-    background: rgba(0, 242, 255, 0.1);
-    color: #00f2ff;
-    border: 1px solid rgba(0, 242, 255, 0.2);
-  }
-  
-  .patients-page ::-webkit-calendar-picker-indicator {
-    filter: invert(1);
-  }
-  
-  .patients-page .material-symbols-outlined {
-    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
-  }
+/* ── Perspective / Tilt ── */
+.perspective-container {
+  perspective: 1000px;
+}
 
-  /* Appended for Patient Approved Menu Page */
-  .approved-menu-page .liquid-glass {
-    backdrop-filter: blur(40px);
-    background: rgba(255, 255, 255, 0.05);
-    border: 1px solid rgba(255, 255, 255, 0.1);
+.tilt-card {
+  transition: transform 0.2s ease-out;
+  transform-style: preserve-3d;
+}
+
+/* ── Material Symbols ── */
+.material-symbols-outlined {
+  font-family: 'Material Symbols Outlined';
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* ── Form Inputs ── */
+.glass-input {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--color-on-surface);
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.glass-input:focus {
+  background: rgba(46, 125, 50, 0.05);
+  border-color: var(--color-primary);
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+  outline: none;
+}
+
+.glass-input::placeholder {
+  color: rgba(0, 0, 0, 0.3);
+}
+
+/* ── Page-specific glass overrides ── */
+.patient-access-page .liquid-glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.dietitian-login-page .liquid-glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.08);
+}
+
+.dietitian-dashboard-page .liquid-glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.dietitian-dashboard-page .liquid-glass-panel:hover {
+  border-color: rgba(46, 125, 50, 0.2);
+  background: rgba(255, 255, 255, 0.85);
+}
+
+.dietitian-dashboard-page .glass-card-nested {
+  background: rgba(0, 0, 0, 0.02);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+.dietitian-dashboard-page .custom-scrollbar::-webkit-scrollbar {
+  width: 4px;
+}
+.dietitian-dashboard-page .custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.dietitian-dashboard-page .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.15);
+  border-radius: 10px;
+}
+
+.dietitian-dashboard-page .action-button-gradient {
+  background: var(--color-primary);
+  color: white;
+  transition: all 0.3s ease;
+}
+.dietitian-dashboard-page .action-button-gradient:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 20px rgba(46, 125, 50, 0.3);
+}
+
+.dietitian-dashboard-page .metric-value {
+  color: var(--color-on-surface);
+  text-shadow: none;
+}
+
+.patients-page .liquid-glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+}
+
+.patients-page input[type="text"],
+.patients-page input[type="number"],
+.patients-page input[type="date"],
+.patients-page select,
+.patients-page textarea {
+  background: rgba(0, 0, 0, 0.03);
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: var(--color-on-surface);
+  border-radius: 0.75rem;
+  transition: all 0.2s ease;
+}
+
+.patients-page input:focus,
+.patients-page select:focus,
+.patients-page textarea:focus {
+  background: rgba(46, 125, 50, 0.05);
+  border-color: var(--color-primary);
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(46, 125, 50, 0.1);
+}
+
+.patients-page .tag-chip {
+  background: rgba(46, 125, 50, 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(46, 125, 50, 0.2);
+}
+
+.patients-page ::-webkit-calendar-picker-indicator {
+  filter: invert(0.4);
+}
+
+.patients-page .material-symbols-outlined {
+  font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+}
+
+/* Approved Menu Page */
+.approved-menu-page .liquid-glass {
+  backdrop-filter: blur(40px);
+  background: rgba(255, 255, 255, 0.8);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.approved-menu-page .tilt-card {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.approved-menu-page .status-badge-approved {
+  background: rgba(46, 125, 50, 0.1);
+  color: var(--color-primary);
+  border: 1px solid rgba(46, 125, 50, 0.3);
+}
+
+/* Recommendation Review Page */
+.recommendation-review-page .liquid-glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+}
+
+.recommendation-review-page .text-shadow-sm {
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.3);
+}
+
+.recommendation-review-page .text-shadow-lg {
+  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.5);
+}
+
+/* Patient Detail Page */
+.patient-detail-page .liquid-glass {
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(24px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.06);
+}
+
+/* Utility padding */
+.px-margin-desktop {
+  padding-left: 1.5rem;
+  padding-right: 1.5rem;
+}
+@media (min-width: 768px) {
+  .px-margin-desktop {
+    padding-left: 4rem;
+    padding-right: 4rem;
   }
-  
-  .approved-menu-page .tilt-card {
-    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
-  }
-  
-  .approved-menu-page .status-badge-approved {
-    background: rgba(255, 255, 255, 0.1);
-    color: #ffffff;
-    border: 1px solid rgba(255, 255, 255, 0.3);
-  }
+}
+
+/* Status badges */
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  padding: 0.25rem 0.75rem;
+  border-radius: 9999px;
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.status-badge--pending {
+  background: rgba(245, 124, 0, 0.1);
+  color: #F57C00;
+  border: 1px solid rgba(245, 124, 0, 0.2);
+}
+
+.status-badge--approved {
+  background: rgba(46, 125, 50, 0.1);
+  color: #2E7D32;
+  border: 1px solid rgba(46, 125, 50, 0.2);
+}
+
+.status-badge--rejected {
+  background: rgba(198, 40, 40, 0.1);
+  color: #C62828;
+  border: 1px solid rgba(198, 40, 40, 0.2);
+}
+
+.status-badge--modified {
+  background: rgba(25, 118, 210, 0.1);
+  color: #1976D2;
+  border: 1px solid rgba(25, 118, 210, 0.2);
+}
+
+.status-badge--needs-action {
+  background: rgba(198, 40, 40, 0.1);
+  color: #C62828;
+  border: 1px solid rgba(198, 40, 40, 0.3);
+}
+
+.status-badge--awaiting {
+  background: rgba(0, 0, 0, 0.04);
+  color: #757575;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+}
+
+/* Loading spinner */
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(46, 125, 50, 0.2);
+  border-top-color: var(--color-primary);
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+/* Connection status dot */
+.connection-status {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  display: inline-block;
+}
+.connection-status--online {
+  background: var(--color-success);
+  box-shadow: 0 0 0 2px rgba(46, 125, 50, 0.2);
+}
+.connection-status--offline {
+  background: var(--color-error);
+  box-shadow: 0 0 0 2px rgba(198, 40, 40, 0.2);
+}
+.connection-status--syncing {
+  background: var(--color-warning);
+  animation: pulse-soft 1.5s ease-in-out infinite;
+}
+/* ── Mesh Gradient Background for Glass Visibility ── */
+.mesh-gradient-bg {
+  background: 
+    radial-gradient(at 0% 0%, rgba(46, 125, 50, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(67, 160, 71, 0.06) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(46, 125, 50, 0.05) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(67, 160, 71, 0.07) 0px, transparent 50%),
+    linear-gradient(180deg, #f0f4f0 0%, #f5f7f5 50%, #f0f4f0 100%);
+  background-size: 200% 200%;
+  animation: meshMove 20s ease infinite;
+}
+
+@keyframes meshMove {
+  0% { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 50%; }
+  25% { background-position: 100% 0%, 100% 100%, 0% 100%, 0% 0%, 50% 100%; }
+  50% { background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%, 100% 50%; }
+  75% { background-position: 0% 100%, 0% 0%, 100% 0%, 100% 100%, 50% 0%; }
+  100% { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 50%; }
+}
+
+/* ── Updated Glass for Mesh Background ── */
+.approved-menu-page .liquid-glass {
+  backdrop-filter: blur(40px) saturate(180%);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 
+    0 4px 24px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.approved-menu-page .liquid-glass-strong {
+  backdrop-filter: blur(60px) saturate(200%);
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.approved-menu-page .liquid-glass-clear {
+  backdrop-filter: blur(20px) saturate(150%);
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* ── Tilt Card Enhancement ── */
+.approved-menu-page .tilt-card {
+  transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.3s ease;
+}
+
+.approved-menu-page .tilt-card:hover {
+  box-shadow: 
+    0 20px 40px rgba(0, 0, 0, 0.08),
+    0 0 0 1px rgba(255, 255, 255, 0.5) inset;
+}
+
+/* ── Header Glass ── */
+.approved-menu-page header {
+  backdrop-filter: blur(40px) saturate(180%);
+  background: rgba(255, 255, 255, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+
+/* ── Mesh Gradient Background for Glass Visibility ── */
+.mesh-gradient-bg {
+  background: 
+    radial-gradient(at 0% 0%, rgba(46, 125, 50, 0.08) 0px, transparent 50%),
+    radial-gradient(at 100% 0%, rgba(67, 160, 71, 0.06) 0px, transparent 50%),
+    radial-gradient(at 100% 100%, rgba(46, 125, 50, 0.05) 0px, transparent 50%),
+    radial-gradient(at 0% 100%, rgba(67, 160, 71, 0.07) 0px, transparent 50%),
+    linear-gradient(180deg, #f0f4f0 0%, #f5f7f5 50%, #f0f4f0 100%);
+  background-size: 200% 200%;
+  animation: meshMove 20s ease infinite;
+}
+
+@keyframes meshMove {
+  0% { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 50%; }
+  25% { background-position: 100% 0%, 100% 100%, 0% 100%, 0% 0%, 50% 100%; }
+  50% { background-position: 100% 100%, 0% 100%, 0% 0%, 100% 0%, 100% 50%; }
+  75% { background-position: 0% 100%, 0% 0%, 100% 0%, 100% 100%, 50% 0%; }
+  100% { background-position: 0% 0%, 100% 0%, 100% 100%, 0% 100%, 0% 50%; }
+}
+
+/* ── Updated Glass for Mesh Background ── */
+.recommendation-review-page .liquid-glass {
+  backdrop-filter: blur(40px) saturate(180%);
+  background: rgba(255, 255, 255, 0.55);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  box-shadow: 
+    0 4px 24px rgba(0, 0, 0, 0.05),
+    inset 0 1px 0 rgba(255, 255, 255, 0.8);
+}
+
+.recommendation-review-page .liquid-glass-strong {
+  backdrop-filter: blur(60px) saturate(200%);
+  background: rgba(255, 255, 255, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  box-shadow: 
+    0 8px 32px rgba(0, 0, 0, 0.06),
+    inset 0 1px 0 rgba(255, 255, 255, 0.9);
+}
+
+.recommendation-review-page .liquid-glass-clear {
+  backdrop-filter: blur(20px) saturate(150%);
+  background: rgba(255, 255, 255, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* ── Header Glass ── */
+.recommendation-review-page header {
+  backdrop-filter: blur(40px) saturate(180%);
+  background: rgba(255, 255, 255, 0.6);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.5);
+}
+
+/* ── Success banner animation ── */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.animate-fade-in {
+  animation: fadeIn 0.4s ease-out forwards;
+}

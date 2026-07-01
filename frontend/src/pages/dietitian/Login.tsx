@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-
-const API_BASE_URL = "http://localhost:8000";
+import { API_URL } from "../../lib/api";
 
 export default function Login() {
   const navigate = useNavigate();
@@ -33,24 +32,23 @@ export default function Login() {
       card.style.transform = "rotateY(0deg) rotateX(0deg)";
     };
     const handleFocus = () => {
-      card.style.borderColor = "rgba(0, 242, 255, 0.3)";
+      card.style.borderColor = "rgba(46, 125, 50, 0.3)";
     };
     const handleBlur = () => {
-      card.style.borderColor = "rgba(255, 255, 255, 0.08)";
+      card.style.borderColor = "rgba(0, 0, 0, 0.08)";
     };
 
-    document.body.addEventListener("mousemove", handleMouseMove);
-    document.body.addEventListener("mouseenter", handleMouseEnter);
-    document.body.addEventListener("mouseleave", handleMouseLeave);
+    card.addEventListener("mouseenter", handleMouseEnter);
+    card.addEventListener("mouseleave", handleMouseLeave);
     inputs.forEach((el) => {
       el.addEventListener("focus", handleFocus);
       el.addEventListener("blur", handleBlur);
     });
 
     return () => {
-      document.body.removeEventListener("mousemove", handleMouseMove);
-      document.body.removeEventListener("mouseenter", handleMouseEnter);
-      document.body.removeEventListener("mouseleave", handleMouseLeave);
+      card.removeEventListener("mousemove", handleMouseMove);
+      card.removeEventListener("mouseenter", handleMouseEnter);
+      card.removeEventListener("mouseleave", handleMouseLeave);
       inputs.forEach((el) => {
         el.removeEventListener("focus", handleFocus);
         el.removeEventListener("blur", handleBlur);
@@ -69,7 +67,7 @@ export default function Login() {
 
     setIsLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      const response = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ username: username.trim(), password }),
@@ -83,11 +81,9 @@ export default function Login() {
       }
 
       const data = await response.json();
-      // Stash the JWT — dashboard/patients pages will read this to authenticate requests
       localStorage.setItem("dietrace_token", data.access_token);
-
       navigate("/dietitian/dashboard");
-    } catch (err) {
+    } catch {
       setError("Could not reach the server. Is the backend running on port 8000?");
       setIsLoading(false);
     }
@@ -95,31 +91,38 @@ export default function Login() {
 
   return (
     <div className="dietitian-login-page min-h-screen overflow-hidden relative flex flex-col items-center justify-center">
-      <video autoPlay className="video-bg" loop muted playsInline>
-        <source
-          src="https://d8j0ntlcm91z4.cloudfront.net/user_38xzZboKViGWJOttwIXH07lWA1P/hf_20260315_073750_51473149-4350-4920-ae24-c8214286f323.mp4"
-          type="video/mp4"
-        />
-      </video>
+      {/* Background */}
+        <video
+        autoPlay
+        className="fixed inset-0 w-full h-full object-cover z-0"
+        src="https://cdn.sceneai.art/backgrounds/e102a51c-c095-492e-b909-72bb753f83a2.mov"
+        loop
+        muted
+        playsInline
+      
+      />
 
-      <header className="fixed top-0 left-0 w-full z-50 flex justify-center items-center h-20 px-8">
-        <div className="w-full max-w-4xl h-14 bg-white/5 border-b border-x border-white/10 rounded-b-xl flex items-center justify-center backdrop-blur-sm">
-          <span className="font-bold text-xl tracking-[0.2em] text-white uppercase">DieTrace</span>
-        </div>
-      </header>
+      {/* Back button - floating top left */}
+      <button
+        onClick={() => navigate("/")}
+        className="fixed top-6 left-6 z-50 flex items-center gap-2 px-4 py-2 rounded-full bg-white/80 backdrop-blur-sm border border-black/10 text-on-surface-variant hover:text-primary hover:border-primary/30 transition-all text-sm font-medium shadow-sm"
+      >
+        <span className="material-symbols-outlined text-base">arrow_back</span>
+        Back to Home
+      </button>
 
       <main className="relative z-10 p-6 perspective-container w-full max-w-md flex items-center justify-center min-h-screen">
         <div ref={cardRef} className="tilt-card liquid-glass rounded-3xl p-10 md:p-12 w-full">
           <div className="flex flex-col items-center mb-10 text-center">
-            <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center mb-6">
+            <div className="w-16 h-16 rounded-2xl bg-primary/10 border border-primary/20 flex items-center justify-center mb-6">
               <span
-                className="material-symbols-outlined text-accent-teal text-4xl"
+                className="material-symbols-outlined text-primary text-4xl"
                 style={{ fontVariationSettings: "'FILL' 1" }}
               >
                 shield_person
               </span>
             </div>
-            <h1 className="text-3xl font-semibold text-white mb-2">Dietitian Login</h1>
+            <h1 className="text-3xl font-semibold text-on-surface mb-2">Dietitian Login</h1>
             <p className="text-on-surface-variant text-base">Secure clinical access portal</p>
           </div>
 
@@ -135,16 +138,19 @@ export default function Login() {
                 <div className="relative group">
                   <input
                     ref={usernameRef}
-                    className="glass-input w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white placeholder:text-white/20 transition-all duration-300"
+                    className="glass-input w-full px-5 py-4 text-on-surface placeholder:text-black/30 transition-all duration-300"
                     id="username"
                     placeholder="Enter username"
                     type="text"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
+                    onChange={(e) => {
+                      setUsername(e.target.value);
+                      setError("");
+                    }}
                     disabled={isLoading}
                   />
                   <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
-                    <span className="material-symbols-outlined text-accent-teal">person</span>
+                    <span className="material-symbols-outlined text-primary">person</span>
                   </div>
                 </div>
               </div>
@@ -159,32 +165,36 @@ export default function Login() {
                 <div className="relative group">
                   <input
                     ref={passwordRef}
-                    className="glass-input w-full bg-white/5 border border-white/10 rounded-xl px-5 py-4 text-white placeholder:text-white/20 transition-all duration-300"
+                    className="glass-input w-full px-5 py-4 text-on-surface placeholder:text-black/30 transition-all duration-300"
                     id="password"
                     placeholder="••••••••"
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => {
+                      setPassword(e.target.value);
+                      setError("");
+                    }}
                     disabled={isLoading}
                   />
                   <div className="absolute inset-y-0 right-4 flex items-center pointer-events-none opacity-40 group-focus-within:opacity-100 transition-opacity">
-                    <span className="material-symbols-outlined text-accent-teal">lock</span>
+                    <span className="material-symbols-outlined text-primary">lock</span>
                   </div>
                 </div>
               </div>
             </div>
 
             {error && (
-              <p className="text-sm text-red-400 bg-red-400/10 border border-red-400/20 rounded-lg px-4 py-3">
+              <div className="flex items-start gap-2 p-3 rounded-xl bg-error/10 border border-error/20 text-error text-sm">
+                <span className="material-symbols-outlined text-sm shrink-0 mt-0.5">error</span>
                 {error}
-              </p>
+              </div>
             )}
 
             <div className="space-y-6">
               <button
                 type="submit"
                 disabled={isLoading}
-                className="w-full bg-white text-black font-bold py-5 px-8 rounded-xl flex items-center justify-center gap-3 hover:bg-accent-teal hover:text-black hover:scale-[1.02] active:scale-95 transition-all duration-300 group disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:scale-100"
+                className="w-full bg-primary text-white font-bold py-5 px-8 rounded-xl flex items-center justify-center gap-3 hover:bg-primary/90 hover:scale-[1.02] active:scale-95 transition-all duration-300 group disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="text-lg">{isLoading ? "Logging in..." : "Login"}</span>
                 {!isLoading && (

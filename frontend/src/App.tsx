@@ -16,9 +16,17 @@ export default function App() {
       <Route path="/patient/menu" element={<ApprovedMenu />} />
       <Route path="/dietitian/login" element={<Login />} />
       <Route path="/dietitian/dashboard" element={<Dashboard />} />
-      <Route path="/dietitian/patients" element={<Patients />} />
+      
+      {/* Edit patient — MUST come before /:id so it matches first */}
+      <Route path="/dietitian/patients/:id/edit" element={<Patients />} />
+      
+      {/* View patient detail */}
       <Route path="/dietitian/patients/:id" element={<PatientDetail />} />
-      <Route path="/dietitian/recommendation" element={<RecommendationResult />} />
+      
+      {/* Create new patient */}
+      <Route path="/dietitian/patients" element={<Patients />} />
+      
+      <Route path="/dietitian/recommendation/:id" element={<RecommendationResult />} />
     </Routes>
   );
 }
