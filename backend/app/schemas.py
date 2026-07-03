@@ -27,9 +27,9 @@ class ORMBase(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 # Dietitian
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 
 class DietitianCreate(BaseModel):
     full_name: str
@@ -51,9 +51,9 @@ class DietitianLogin(BaseModel):
     password: str
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 # Menu Option
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 
 class MenuOptionBase(BaseModel):
     menu_code: str
@@ -115,9 +115,9 @@ class MenuOptionRead(MenuOptionBase, ORMBase):
     created_at: datetime
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 # Patient Health Profile
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 
 class PatientHealthProfileBase(BaseModel):
     weight_kg: Optional[Decimal] = None
@@ -167,9 +167,9 @@ class PatientHealthProfileRead(PatientHealthProfileBase, ORMBase):
     updated_at: datetime
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 # Recommendation (nested, for PatientRead)
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 
 class LatestRecommendationRead(ORMBase):
     id: uuid.UUID
@@ -181,9 +181,9 @@ class LatestRecommendationRead(ORMBase):
     review_note: Optional[str] = None
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 # Patient
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 
 class PatientBase(BaseModel):
     patient_code: str
@@ -192,6 +192,7 @@ class PatientBase(BaseModel):
     gender: str
     ward: Optional[str] = None
     admission_date: Optional[date] = None
+    discharge_date: Optional[date] = None
 
 
 class PatientCreate(PatientBase):
@@ -204,6 +205,7 @@ class PatientUpdate(BaseModel):
     gender: Optional[str] = None
     ward: Optional[str] = None
     admission_date: Optional[date] = None
+    discharge_date: Optional[date] = None
 
 
 class PatientRead(PatientBase, ORMBase):
@@ -212,11 +214,12 @@ class PatientRead(PatientBase, ORMBase):
     updated_at: datetime
     health_profile: Optional[PatientHealthProfileRead] = None
     latest_recommendation: Optional[LatestRecommendationRead] = None
+    total_days: Optional[int] = None
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 # Recommendation Item
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 
 class RecommendationItemRead(ORMBase):
     id: uuid.UUID
@@ -229,9 +232,9 @@ class RecommendationItemRead(ORMBase):
     created_at: datetime
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 # Approval History
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 
 class ApprovalHistoryRead(ORMBase):
     id: uuid.UUID
@@ -241,9 +244,9 @@ class ApprovalHistoryRead(ORMBase):
     note: Optional[str] = None
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 # Recommendation
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 
 class RecommendationRead(ORMBase):
     id: uuid.UUID
@@ -259,6 +262,8 @@ class RecommendationRead(ORMBase):
     no_suitable_alert_json: dict[str, Any] = Field(default_factory=dict)
     items: list[RecommendationItemRead] = Field(default_factory=list)
     approval_history: list[ApprovalHistoryRead] = Field(default_factory=list)
+    day_number: Optional[int] = None
+    weekly_plan_id: Optional[uuid.UUID] = None
 
 
 class RecommendationReviewAction(BaseModel):
@@ -272,9 +277,37 @@ class RecommendationReviewAction(BaseModel):
     new_menu_name: Optional[str] = None
 
 
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
+# Weekly Plan
+# ────────────────────────────────────────────────────────────────────
+
+class WeeklyPlanDayRead(ORMBase):
+    id: uuid.UUID
+    day_number: int
+    cycle_day: int
+    status: str
+    review_note: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    created_at: datetime
+    recommendation_id: Optional[uuid.UUID] = None
+    recommendation: Optional[RecommendationRead] = None
+
+
+class WeeklyPlanRead(ORMBase):
+    id: uuid.UUID
+    patient_id: uuid.UUID
+    admission_date: date
+    discharge_date: date
+    total_days: int
+    overall_status: str
+    created_at: datetime
+    updated_at: datetime
+    days: list[WeeklyPlanDayRead] = Field(default_factory=list)
+
+
+# ────────────────────────────────────────────────────────────────────
 # Dashboard & Auth
-# ─────────────────────────────────────────────────────────────────────────
+# ────────────────────────────────────────────────────────────────────
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -305,7 +338,7 @@ class WorkloadSnapshot(BaseModel):
     modified: int = 0
     reviewed: int = 0  # approved + rejected + modified
     generated: int = 0  # total recommendations generated today
-# ─────────────────────────────────────────────────────────────────────────
+
 
 class PatientViewMealItem(BaseModel):
     meal_time: str
