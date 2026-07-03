@@ -7,6 +7,8 @@ import Dashboard from "./pages/dietitian/Dashboard";
 import Patients from "./pages/dietitian/Patients";
 import PatientDetail from "./pages/dietitian/PatientDetail";
 import RecommendationResult from "./pages/dietitian/RecommendationResult";
+import WeeklyPlanPage from "./pages/dietitian/WeeklyPlanPage";
+import FullMenuReportPage from "./pages/dietitian/FullMenuReportPage";
 
 export default function App() {
   return (
@@ -16,6 +18,10 @@ export default function App() {
       <Route path="/patient/menu" element={<ApprovedMenu />} />
       <Route path="/dietitian/login" element={<Login />} />
       <Route path="/dietitian/dashboard" element={<Dashboard />} />
+      
+      {/* Weekly Plan Routes */}
+      <Route path="/dietitian/weekly-plan/:patientId" element={<WeeklyPlanPage />} />
+      <Route path="/dietitian/weekly-plan/:weeklyPlanId/full-report" element={<FullMenuReportPage />} />
       
       {/* Edit patient — MUST come before /:id so it matches first */}
       <Route path="/dietitian/patients/:id/edit" element={<Patients />} />
