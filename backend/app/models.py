@@ -189,6 +189,7 @@ class Recommendation(Base):
         UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False
     )
     cycle_day: Mapped[int] = mapped_column(Integer, nullable=False)
+    menu_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     status: Mapped[str] = mapped_column(
         Text, nullable=False, server_default=text("'pending_review'::text")
     )

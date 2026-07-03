@@ -17,7 +17,7 @@ from __future__ import annotations
 import uuid
 from datetime import date, datetime
 from decimal import Decimal
-from typing import Any, Optional
+from typing import Any, Literal, Optional
 
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -126,12 +126,12 @@ class PatientHealthProfileBase(BaseModel):
     has_hypertension: bool = False
     has_high_cholesterol: bool = False
     allergies: list[str] = Field(default_factory=list)
-    activity_level: str = "sedentary"
+    activity_level: Literal["sedentary", "moderate", "active"] = "sedentary"
     is_vegetarian: bool = False
     has_chewing_problem: bool = False
     preferred_protein: str = "none"
     preferred_carbohydrate: str = "none"
-    patient_category: str = "normal"
+    patient_category: Literal["normal", "pregnant", "pre-operation", "post-operation"] = "normal"
     pregnancy_trimester: Optional[int] = Field(default=None, ge=1, le=3)
     smokes: bool = False
     sleep_pattern: str = "normal"
@@ -149,12 +149,12 @@ class PatientHealthProfileUpdate(BaseModel):
     has_hypertension: Optional[bool] = None
     has_high_cholesterol: Optional[bool] = None
     allergies: Optional[list[str]] = None
-    activity_level: Optional[str] = None
+    activity_level: Optional[Literal["sedentary", "moderate", "active"]] = None
     is_vegetarian: Optional[bool] = None
     has_chewing_problem: Optional[bool] = None
     preferred_protein: Optional[str] = None
     preferred_carbohydrate: Optional[str] = None
-    patient_category: Optional[str] = None
+    patient_category: Optional[Literal["normal", "pregnant", "pre-operation", "post-operation"]] = None
     pregnancy_trimester: Optional[int] = Field(default=None, ge=1, le=3)
     smokes: Optional[bool] = None
     sleep_pattern: Optional[str] = None
@@ -174,6 +174,7 @@ class PatientHealthProfileRead(PatientHealthProfileBase, ORMBase):
 class LatestRecommendationRead(ORMBase):
     id: uuid.UUID
     cycle_day: int
+    menu_date: Optional[date] = None
     status: str
     generated_at: datetime
     reviewed_by: Optional[uuid.UUID] = None
@@ -249,6 +250,7 @@ class RecommendationRead(ORMBase):
     id: uuid.UUID
     patient: PatientRead
     cycle_day: int
+    menu_date: Optional[date] = None
     status: str
     generated_at: datetime
     reviewed_by: Optional[uuid.UUID] = None

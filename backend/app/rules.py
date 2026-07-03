@@ -5,7 +5,7 @@ from typing import Dict, List, Tuple
 
 
 # ==========================================================
-# BMI RULES (R1-R4)
+# BMI RULES (R1-R5)
 # ==========================================================
 
 def calculate_bmi(weight_kg: float, height_cm: float) -> float:
@@ -21,7 +21,7 @@ def calculate_bmi(weight_kg: float, height_cm: float) -> float:
 
 def get_bmi_category(bmi: float) -> str:
     """
-    R2-R4
+    R2-R5
     """
     if bmi < 18.5:
         return "underweight"
@@ -36,7 +36,7 @@ def get_bmi_category(bmi: float) -> str:
 
 
 # ==========================================================
-# AGE CATEGORY RULES (R5-R7)
+# AGE CATEGORY RULES (R6-R8)
 # ==========================================================
 
 def get_age_category(age: int) -> str:
@@ -50,7 +50,7 @@ def get_age_category(age: int) -> str:
 
 
 # ==========================================================
-# CALORIE FACTOR RULES (R8-R16)
+# BMR + ACTIVITY MULTIPLIER RULES (R9-R12)
 # ==========================================================
 
 CALORIE_FACTORS = {
@@ -80,59 +80,64 @@ def get_calorie_factor(
 
 
 # ==========================================================
-# DAILY CALORIE RULES (R17-R27)
+# DAILY CALORIE RULES (R9-R22)
 # ==========================================================
 
 def calculate_daily_calories(
     weight_kg: float,
-    age_category: str,
+    age: int,
+    height_cm: float,
+    gender: str,
+    activity_level: str,
     patient_category: str,
-    calorie_factor: int,
     pregnancy_trimester: int | None = None
 ) -> int:
     """
-    Returns Final Daily Calories
+    Returns Final Daily Calories using Mifflin-St Jeor equation.
     """
-    # R17
-    base_daily_calories = float(weight_kg) * calorie_factor
-
-    # R18-R20
-    if age_category == "child":
-        age_adjusted = base_daily_calories * 0.80
-
-    elif age_category == "teenager":
-        age_adjusted = base_daily_calories * 0.90
-
+    # R9: Basal Metabolic Rate
+    bmr = (10 * float(weight_kg)) + (6.25 * float(height_cm)) - (5 * age)
+    if gender.lower() == "male":
+        bmr += 5
     else:
-        age_adjusted = base_daily_calories
+        bmr -= 161
 
+    # R10-R12: Activity multiplier
+    multipliers = {"sedentary": 1.2, "moderate": 1.375, "active": 1.55}
+    activity_multiplier = multipliers.get(activity_level.lower(), 1.2)
+    activity_adjusted = bmr * activity_multiplier
+
+    # R13-R15: Growth adjustment (children & teens need MORE, not less)
+    growth_adjustment = 0
+    if age < 13:
+        growth_adjustment = 200
+    elif age < 18:
+        growth_adjustment = 100
+
+    # R16-R21: Category adjustment
     adjustment = 0
-
-    # R21-R26
     if patient_category == "pregnant":
-
         if pregnancy_trimester == 1:
             adjustment = 300
-
         elif pregnancy_trimester == 2:
             adjustment = 350
-
-        elif pregnancy_trimester == 3:
-            adjustment = 500
-
+        else:
+            adjustment = 500  # trimester 3 OR default if not specified
     elif patient_category == "pre_operation":
         adjustment = -200
-
     elif patient_category == "post_operation":
         adjustment = 200
 
-    final_daily_calories = age_adjusted + adjustment
+    return int(round(activity_adjusted + growth_adjustment + adjustment))
 
-    return int(round(final_daily_calories))
+
+def get_calorie_bounds(target: int) -> tuple[int, int]:
+    """Returns (minimum, maximum) acceptable calories for a meal."""
+    return int(target * 0.5), int(target * 1.0)
 
 
 # ==========================================================
-# MEAL TARGET RULES (R28-R30)
+# MEAL TARGET RULES (R23-R25)
 # ==========================================================
 
 def calculate_meal_targets(
@@ -147,7 +152,7 @@ def calculate_meal_targets(
 
 
 # ==========================================================
-# MENU DAY RULES (R41-R44) — NOW ACCEPTS FULL DATE
+# MENU DAY RULES (R36-R39) — NOW ACCEPTS FULL DATE
 # ==========================================================
 
 def get_cycle_day_from_date(input_date: date | datetime | str | None = None) -> tuple[int, str]:
@@ -161,10 +166,10 @@ def get_cycle_day_from_date(input_date: date | datetime | str | None = None) -> 
         - ISO string "2026-06-24"
         - None (uses today)
 
-    R41: Sunday or Thursday → Menu day 1
-    R42: Monday or Friday → Menu day 2
-    R43: Tuesday or Saturday → Menu day 3
-    R44: Wednesday → Menu day 4
+    R36: Sunday or Thursday → Menu day 1
+    R37: Monday or Friday → Menu day 2
+    R38: Tuesday or Saturday → Menu day 3
+    R39: Wednesday → Menu day 4
     """
 
     # Parse input
@@ -250,7 +255,7 @@ def build_constraints(profile) -> List[str]:
 
 
 # ==========================================================
-# SAFETY FILTERS (R49-R58)
+# SAFETY FILTERS (R46-R55)
 # ==========================================================
 
 def passes_constraints(
@@ -260,27 +265,41 @@ def passes_constraints(
 
     reasons = []
 
-    # R51: Sugar constraint
+    # R46: Sugar constraint
     if profile.has_diabetes and menu.sugar_level.lower() == "high":
         reasons.append("high sugar")
 
-    # R52: Sodium constraint
+    # R47: Sodium constraint
     if profile.has_hypertension and menu.sodium_level.lower() == "high":
         reasons.append("high sodium")
 
-    # R53: Fat constraint
+    # R48: Fat constraint
     if profile.has_high_cholesterol and menu.fat_level.lower() == "high":
         reasons.append("high fat")
 
-    # R55: Vegetarian filter
+    # R53: Fibre constraint (normal/post-op patients need adequate fibre)
+    if (
+        profile.patient_category in ("normal", "post_operation")
+        and menu.fibre_level.lower() == "low"
+    ):
+        reasons.append("low fibre")
+
+    # R54: Oil constraint for high cholesterol patients
+    if (
+        profile.has_high_cholesterol
+        and menu.oil_level.lower() == "high"
+    ):
+        reasons.append("high oil")
+
+    # R50: Vegetarian filter
     if profile.is_vegetarian and not menu.vegetarian:
         reasons.append("not vegetarian")
 
-    # R56: Chewing filter
+    # R51: Chewing filter
     if profile.has_chewing_problem and not menu.suitable_chewing:
         reasons.append("not chewing friendly")
 
-    # R57: Low fibre (pre-operation)
+    # R52: Low fibre (pre-operation)
     if (
         profile.patient_category == "pre_operation"
         and menu.fibre_level.lower() != "low"
@@ -308,7 +327,7 @@ def passes_constraints(
     ):
         reasons.append("not suitable for post_operation")
 
-    # R54: Allergy exclusion
+    # R49: Allergy exclusion
     patient_allergies = {
         allergy.lower()
         for allergy in (profile.allergies or [])
@@ -326,7 +345,7 @@ def passes_constraints(
 
 
 # ==========================================================
-# SCORING RULES (R59-R63)
+# SCORING RULES (R56-R60)
 # ==========================================================
 
 def score_menu(
@@ -337,42 +356,42 @@ def score_menu(
     score = 0
     trace = []
 
-    # R59: Preferred protein
+    # R56: Preferred protein
     if (
         profile.preferred_protein
         and profile.preferred_protein != "none"
         and menu.protein_type == profile.preferred_protein
     ):
         score += 30
-        trace.append("+30 preferred protein match (R59)")
+        trace.append("+30 preferred protein match (R56)")
 
-    # R60: Preferred carbohydrate
+    # R57: Preferred carbohydrate
     if (
         profile.preferred_carbohydrate
         and profile.preferred_carbohydrate != "none"
         and menu.carbohydrate_type == profile.preferred_carbohydrate
     ):
         score += 20
-        trace.append("+20 preferred carbohydrate match (R60)")
+        trace.append("+20 preferred carbohydrate match (R57)")
 
-    # R61: Vegetarian bonus
+    # R58: Vegetarian bonus
     if (
         profile.is_vegetarian
         and menu.vegetarian
     ):
         score += 10
-        trace.append("+10 vegetarian match (R61)")
+        trace.append("+10 vegetarian match (R58)")
 
-    # R62: Post-operation high protein
+    # R59: Post-operation high protein
     if (
         profile.patient_category == "post_operation"
         and menu.protein_level.lower() == "high"
     ):
         score += 40
-        trace.append("+40 post-op high protein (R62)")
+        trace.append("+40 post-op high protein (R59)")
 
-    # R63: No preference match
+    # R60: No preference match
     if score == 0:
-        trace.append("+0 no preference match (R63)")
+        trace.append("+0 no preference match (R60)")
 
     return score, trace

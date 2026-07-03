@@ -221,7 +221,7 @@ export default function Dashboard() {
           no_suitable_alerts: data.no_suitable_alerts ?? 0,
         });
       } catch (err: any) {
-        console.warn("Dashboard summary failed:", err.message || err);
+        // silently ignore
       }
     }
     loadSummary();
@@ -240,7 +240,7 @@ export default function Dashboard() {
         const data = await res.json();
         setActivity(Array.isArray(data) ? data : []);
       } catch (err: any) {
-        console.warn("Activity feed failed:", err.message || err);
+        // silently ignore
       }
     }
 
@@ -255,7 +255,7 @@ export default function Dashboard() {
         const data = await res.json();
         setWorkload(data);
       } catch (err: any) {
-        console.warn("Workload snapshot failed:", err.message || err);
+        // silently ignore
       }
     }
 

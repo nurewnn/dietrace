@@ -98,7 +98,7 @@ function deriveEstimatedDiet(data: PatientDetailData) {
 }
 
 function deriveCalorieEstimate(data: PatientDetailData) {
-  // TODO: This duplicates backend inference logic. Consider fetching from API instead.
+  // NOTE: mirrors backend inference; migrate to API endpoint when feasible.
   let factor = 30;
   const bmi = parseFloat(computeBmi(data.weightKg, data.heightCm).value);
 

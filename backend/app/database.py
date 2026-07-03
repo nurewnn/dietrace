@@ -1,4 +1,5 @@
 # Database connection and session setup
+import logging
 import os
 from dotenv import load_dotenv
 from sqlalchemy import create_engine, text
@@ -28,5 +29,5 @@ def test_connection():
             connection.execute(text("SELECT 1"))
         return True
     except Exception as e:
-        print(f"Database connection failed: {e}")
+        logging.error("Database connection failed: %s", e)
         return False

@@ -32,10 +32,9 @@ from app.models import Dietitian
 from app.schemas import DietitianLogin, DietitianRead, TokenResponse
 
 # ── Config ───────────────────────────────────────────────────────────────
-# TODO: set JWT_SECRET_KEY in your .env before submission/deployment.
-# This fallback exists only so the app doesn't crash if you forget locally —
-# it is NOT safe to leave as-is for anything beyond your own dev machine.
-SECRET_KEY = os.getenv("JWT_SECRET_KEY", "dev-only-change-me")
+SECRET_KEY = os.getenv("JWT_SECRET_KEY")
+if not SECRET_KEY:
+    raise RuntimeError("JWT_SECRET_KEY environment variable is required.")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 8  # 8 hours, roughly one shift
 

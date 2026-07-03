@@ -18,10 +18,8 @@ from app.rules import (
     calculate_bmi,
     get_bmi_category,
     get_age_category,
-    get_calorie_factor,
-    calculate_daily_calories,
-    calculate_meal_targets,
-    get_cycle_day_from_date,  # <-- NEW: accepts full date
+    get_calorie_bounds,
+    get_cycle_day_from_date,
     build_constraints,
     passes_constraints,
     score_menu,
@@ -33,10 +31,10 @@ from app.explanation import build_explanation
 def generate_recommendation(
     db: Session,
     patient_id,
-    menu_date: Optional[str] = None,  # <-- CHANGED: accepts "2026-06-24" from calendar
+    menu_date: Optional[str] = None,
 ):
     """
-    Main Forward Chaining Engine with proper Rule Trace (R001, R042, etc.)
+    Deterministic Rule-Based Sequential Inference Pipeline.
 
     Args:
         menu_date: ISO date string from calendar picker (e.g., "2026-06-24")
@@ -66,7 +64,7 @@ def generate_recommendation(
         raise ValueError("Patient health profile not found")
 
     # ======================================================
-    # Forward Chaining — Generate Facts with Rule IDs
+    # Sequential Inference — Generate Facts with Rule IDs
     # ======================================================
 
     rule_trace = []
@@ -81,9 +79,14 @@ def generate_recommendation(
         "message": f"BMI calculated as {bmi} using weight and height"
     })
 
-    # R2-R4: BMI category
+    # R2-R5: BMI category
     bmi_category = get_bmi_category(bmi)
-    bmi_rule = "R2" if bmi_category == "underweight" else "R3" if bmi_category == "normal" else "R4"
+    bmi_rule = (
+        "R2" if bmi_category == "underweight" else
+        "R3" if bmi_category == "normal" else
+        "R4" if bmi_category == "overweight" else
+        "R5"
+    )
     rule_trace.append({
         "rule_id": bmi_rule,
         "condition_matched": f"BMI = {bmi}",
@@ -91,9 +94,9 @@ def generate_recommendation(
         "message": f"Patient BMI {bmi} falls into {bmi_category} category"
     })
 
-    # R5-R7: Age category
+    # R6-R8: Age category
     age_category = get_age_category(patient.age)
-    age_rule = "R5" if age_category == "child" else "R6" if age_category == "teenager" else "R7"
+    age_rule = "R6" if age_category == "child" else "R7" if age_category == "teenager" else "R8"
     rule_trace.append({
         "rule_id": age_rule,
         "condition_matched": f"Age = {patient.age}",
@@ -101,134 +104,151 @@ def generate_recommendation(
         "message": f"Patient age {patient.age} classified as {age_category}"
     })
 
-    # R8-R16: Calorie factor
-    calorie_factor = get_calorie_factor(bmi_category, profile.activity_level)
-    cf_key = (bmi_category.lower(), profile.activity_level.lower())
-    cf_rules = {
-        ("overweight", "sedentary"): "R8",
-        ("overweight", "moderate"): "R9",
-        ("overweight", "active"): "R10",
-        ("normal", "sedentary"): "R11",
-        ("normal", "moderate"): "R12",
-        ("normal", "active"): "R13",
-        ("underweight", "sedentary"): "R14",
-        ("underweight", "moderate"): "R15",
-        ("underweight", "active"): "R16",
-    }
-    cf_rule = cf_rules.get(cf_key, "R8")
+    # R9: BMR (Mifflin-St Jeor)
+    gender_offset = 5 if patient.gender.lower() == "male" else -161
+    bmr = (10 * float(profile.weight_kg)) + (6.25 * float(profile.height_cm)) - (5 * patient.age) + gender_offset
     rule_trace.append({
-        "rule_id": cf_rule,
-        "condition_matched": f"BMI={bmi_category}, Activity={profile.activity_level}",
-        "conclusion": f"Calorie factor = {calorie_factor}",
-        "message": f"Based on {bmi_category} BMI and {profile.activity_level} activity, calorie factor is {calorie_factor}"
+        "rule_id": "R9",
+        "condition_matched": f"Weight={profile.weight_kg}kg, Height={profile.height_cm}cm, Age={patient.age}, Gender={patient.gender}",
+        "conclusion": f"BMR = {bmr:.0f} kcal",
+        "message": f"Basal Metabolic Rate (Mifflin-St Jeor): {bmr:.0f} kcal"
     })
 
-    # R17: Base daily calories
-    base_calories = float(profile.weight_kg) * calorie_factor
+    # R10-R12: Activity multiplier
+    activity_multipliers = {"sedentary": 1.2, "moderate": 1.375, "active": 1.55}
+    activity_multiplier = activity_multipliers.get(profile.activity_level.lower(), 1.2)
+    activity_rule = (
+        "R10" if profile.activity_level == "sedentary" else
+        "R11" if profile.activity_level == "moderate" else
+        "R12"
+    )
+    activity_adjusted = bmr * activity_multiplier
     rule_trace.append({
-        "rule_id": "R17",
-        "condition_matched": f"Weight={profile.weight_kg}kg, Calorie factor={calorie_factor}",
-        "conclusion": f"Base daily calories = {base_calories:.0f} kcal",
-        "message": f"Base calories: {profile.weight_kg} x {calorie_factor} = {base_calories:.0f} kcal"
+        "rule_id": activity_rule,
+        "condition_matched": f"Activity level = {profile.activity_level}",
+        "conclusion": f"Activity-adjusted calories = {activity_adjusted:.0f} kcal",
+        "message": f"{profile.activity_level.title()} activity: {bmr:.0f} × {activity_multiplier} = {activity_adjusted:.0f} kcal"
     })
 
-    # R18-R20: Age-adjusted calories
+    # R13-R15: Growth adjustment
+    growth_adjustment = 0
     if age_category == "child":
-        age_adjusted = base_calories * 0.80
-        age_adj_rule = "R18"
+        growth_adjustment = 200
+        growth_rule = "R13"
     elif age_category == "teenager":
-        age_adjusted = base_calories * 0.90
-        age_adj_rule = "R19"
+        growth_adjustment = 100
+        growth_rule = "R14"
     else:
-        age_adjusted = base_calories
-        age_adj_rule = "R20"
+        growth_rule = "R15"
     rule_trace.append({
-        "rule_id": age_adj_rule,
+        "rule_id": growth_rule,
         "condition_matched": f"Age category = {age_category}",
-        "conclusion": f"Age-adjusted calories = {age_adjusted:.0f} kcal",
-        "message": f"{age_category.title()} adjustment applied: {age_adjusted:.0f} kcal"
+        "conclusion": f"Growth adjustment = {growth_adjustment:+d} kcal",
+        "message": f"{age_category.title()} growth adjustment: {growth_adjustment:+d} kcal"
     })
 
-    # R21-R26: Patient category adjustment
+    # R16-R21: Patient category adjustment
     adjustment = 0
     if profile.patient_category == "normal":
-        cat_rule = "R21"
+        cat_rule = "R16"
     elif profile.patient_category == "pregnant":
         if profile.pregnancy_trimester == 1:
             adjustment = 300
-            cat_rule = "R22"
+            cat_rule = "R17"
         elif profile.pregnancy_trimester == 2:
             adjustment = 350
-            cat_rule = "R23"
+            cat_rule = "R18"
         else:
             adjustment = 500
-            cat_rule = "R24"
+            cat_rule = "R19"
     elif profile.patient_category == "pre-operation":
         adjustment = -200
-        cat_rule = "R25"
+        cat_rule = "R20"
     elif profile.patient_category == "post-operation":
         adjustment = 200
-        cat_rule = "R26"
-    else:
         cat_rule = "R21"
+    else:
+        cat_rule = "R16"
 
     rule_trace.append({
         "rule_id": cat_rule,
         "condition_matched": f"Patient category = {profile.patient_category}",
-        "conclusion": f"Calorie adjustment = {adjustment:+d} kcal",
+        "conclusion": f"Category adjustment = {adjustment:+d} kcal",
         "message": f"{profile.patient_category} category adjustment: {adjustment:+d} kcal"
     })
 
-    # R27: Final daily calories
-    final_daily_calories = int(round(age_adjusted + adjustment))
+    # R22: Final daily calories
+    final_daily_calories = int(round(activity_adjusted + growth_adjustment + adjustment))
     rule_trace.append({
-        "rule_id": "R27",
-        "condition_matched": f"Age-adjusted={age_adjusted:.0f}, Adjustment={adjustment}",
+        "rule_id": "R22",
+        "condition_matched": f"Activity-adjusted={activity_adjusted:.0f}, Growth={growth_adjustment:+d}, Adjustment={adjustment:+d}",
         "conclusion": f"Final daily calories = {final_daily_calories} kcal",
-        "message": f"Final: {age_adjusted:.0f} + {adjustment} = {final_daily_calories} kcal/day"
+        "message": f"Final: {activity_adjusted:.0f} + {growth_adjustment:+d} + {adjustment:+d} = {final_daily_calories} kcal/day"
     })
 
-    # R28-R30: Meal targets
-    meal_targets = calculate_meal_targets(final_daily_calories)
+    # R23-R25: Meal targets
+    meal_targets = {
+        "breakfast": int(round(final_daily_calories * 0.25)),
+        "lunch": int(round(final_daily_calories * 0.40)),
+        "dinner": int(round(final_daily_calories * 0.35)),
+    }
     rule_trace.append({
-        "rule_id": "R28-R30",
+        "rule_id": "R23-R25",
         "condition_matched": f"Final daily calories = {final_daily_calories}",
         "conclusion": f"Breakfast={meal_targets['breakfast']}, Lunch={meal_targets['lunch']}, Dinner={meal_targets['dinner']}",
         "message": f"Meal targets: Breakfast 25% ({meal_targets['breakfast']} kcal), Lunch 40% ({meal_targets['lunch']} kcal), Dinner 35% ({meal_targets['dinner']} kcal)"
     })
 
-    # R31-R34: Medical constraints
+    # R26-R28: Medical constraints
     constraints = build_constraints(profile)
     if profile.has_diabetes:
         rule_trace.append({
-            "rule_id": "R31",
+            "rule_id": "R26",
             "condition_matched": "Patient has diabetes",
             "conclusion": "Sugar constraint active — only low sugar meals",
             "message": "Diabetes detected: high sugar meals will be excluded"
         })
     if profile.has_hypertension:
         rule_trace.append({
-            "rule_id": "R32",
+            "rule_id": "R27",
             "condition_matched": "Patient has hypertension",
             "conclusion": "Sodium constraint active — only low sodium meals",
             "message": "Hypertension detected: high sodium meals will be excluded"
         })
     if profile.has_high_cholesterol:
         rule_trace.append({
-            "rule_id": "R33",
+            "rule_id": "R28",
             "condition_matched": "Patient has high cholesterol",
             "conclusion": "Fat constraint active — only low fat meals",
             "message": "High cholesterol detected: high fat meals will be excluded"
         })
 
-    # R35-R40: Allergy constraints
+    # R29: Fibre constraint for normal/post-op patients
+    if profile.patient_category in ("normal", "post_operation"):
+        rule_trace.append({
+            "rule_id": "R29",
+            "condition_matched": f"Patient category = {profile.patient_category}",
+            "conclusion": "Adequate fibre constraint active",
+            "message": f"{profile.patient_category}: low-fibre meals will be excluded"
+        })
+
+    # R30: Oil constraint for high cholesterol patients
+    if profile.has_high_cholesterol:
+        rule_trace.append({
+            "rule_id": "R30",
+            "condition_matched": "Patient has high cholesterol",
+            "conclusion": "Oil constraint active — exclude high oil meals",
+            "message": "High cholesterol: high oil meals will be excluded"
+        })
+
+    # R31-R35: Allergy constraints
     if profile.allergies:
         for allergy in profile.allergies:
             allergy_rules = {
-                "nut": "R35", "dairy": "R36", "egg": "R37",
-                "seafood": "R38", "gluten": "R39"
+                "nut": "R31", "dairy": "R32", "egg": "R33",
+                "seafood": "R34", "gluten": "R35"
             }
-            rule_id = allergy_rules.get(allergy.lower(), "R38")
+            rule_id = allergy_rules.get(allergy.lower(), "R35")
             rule_trace.append({
                 "rule_id": rule_id,
                 "condition_matched": f"Patient has {allergy} allergy",
@@ -236,15 +256,15 @@ def generate_recommendation(
                 "message": f"{allergy.title()} allergy: menus containing {allergy} will be excluded"
             })
 
-    # R41-R44: Cycle day from FRONTEND DATE (your calendar picker!)
+    # R36-R39: Cycle day from calendar date
     cycle_day, weekday_name = get_cycle_day_from_date(menu_date)
     day_map = {
-        "monday": "R42", "friday": "R42",
-        "tuesday": "R43", "saturday": "R43",
-        "sunday": "R41", "thursday": "R41",
-        "wednesday": "R44"
+        "sunday": "R36", "thursday": "R36",
+        "monday": "R37", "friday": "R37",
+        "tuesday": "R38", "saturday": "R38",
+        "wednesday": "R39"
     }
-    day_rule = day_map.get(weekday_name, "R42")
+    day_rule = day_map.get(weekday_name, "R37")
 
     rule_trace.append({
         "rule_id": day_rule,
@@ -253,31 +273,31 @@ def generate_recommendation(
         "message": f"{weekday_name.title()} maps to menu cycle day {cycle_day}"
     })
 
-    # R45-R48: Patient category filters
+    # R40-R42: Patient category filters
     if profile.is_vegetarian:
         rule_trace.append({
-            "rule_id": "R45",
+            "rule_id": "R40",
             "condition_matched": "Patient is vegetarian",
             "conclusion": "Vegetarian filter active",
             "message": "Vegetarian preference: only vegetarian meals allowed"
         })
     if profile.has_chewing_problem:
         rule_trace.append({
-            "rule_id": "R46",
+            "rule_id": "R41",
             "condition_matched": "Patient has chewing problem",
             "conclusion": "Chewing filter active",
             "message": "Chewing difficulty: only soft/chewing-friendly meals allowed"
         })
     if profile.patient_category == "pre-operation":
         rule_trace.append({
-            "rule_id": "R47",
+            "rule_id": "R42",
             "condition_matched": "Patient is pre-operation",
             "conclusion": "Low fibre filter active",
             "message": "Pre-op: low fibre meals required"
         })
 
     # ======================================================
-    # Candidate Search (R49-R58)
+    # Candidate Search (R43-R62)
     # ======================================================
 
     selected_menus = {}
@@ -305,36 +325,40 @@ def generate_recommendation(
 
         for menu in menus:
 
-            # R50: Calorie target filter
+            # R45: Maximum calorie filter
             if menu.calories_kcal is not None and menu.calories_kcal > meal_targets[meal_time]:
                 meal_rejected.append({
                     "menu_name": menu.menu_name,
                     "menu_code": menu.menu_code,
-                    "reason": f"Calories {menu.calories_kcal} exceed target {meal_targets[meal_time]} kcal (R50)"
+                    "reason": f"Calories {menu.calories_kcal} exceed target {meal_targets[meal_time]} kcal (R45)"
                 })
                 continue
 
-            # R51-R58: Constraint filters
+            # R46-R54: Constraint filters
             passed, reject_reasons = passes_constraints(menu, profile)
 
             if not passed:
                 reason_parts = []
                 for r in reject_reasons:
-                    if r == "high sugar": reason_parts.append("high sugar (R31)")
-                    elif r == "high sodium": reason_parts.append("high sodium (R32)")
-                    elif r == "high fat": reason_parts.append("high fat (R33)")
-                    elif r == "not vegetarian": reason_parts.append("not vegetarian (R55)")
-                    elif r == "not chewing friendly": reason_parts.append("not chewing-friendly (R56)")
-                    elif r == "not low fibre": reason_parts.append("not low fibre (R57)")
+                    if r == "high sugar": reason_parts.append("high sugar (R46)")
+                    elif r == "high sodium": reason_parts.append("high sodium (R47)")
+                    elif r == "high fat": reason_parts.append("high fat (R48)")
+                    elif r == "not vegetarian": reason_parts.append("not vegetarian (R50)")
+                    elif r == "not chewing friendly": reason_parts.append("not chewing-friendly (R51)")
+                    elif r == "not low fibre": reason_parts.append("not low fibre (R52)")
                     elif r == "not suitable for pregnancy": reason_parts.append("not pregnancy-safe")
                     elif r == "not suitable for pre_operation": reason_parts.append("not pre-op suitable")
                     elif r == "not suitable for post_operation": reason_parts.append("not post-op suitable")
-                    elif r == "contains allergy ingredient": 
+                    elif r == "contains allergy ingredient":
                         allergies = profile.allergies or []
                         reason_parts.append(f"contains allergen ({', '.join(allergies)})")
+                    elif r == "low fibre":
+                        reason_parts.append("low fibre (R53)")
+                    elif r == "high oil":
+                        reason_parts.append("high oil (R54)")
                     else:
                         reason_parts.append(r)
-                
+
                 meal_rejected.append({
                     "menu_name": menu.menu_name,
                     "menu_code": menu.menu_code,
@@ -342,7 +366,7 @@ def generate_recommendation(
                 })
                 continue
 
-            # R59-R63: Scoring
+            # R56-R60: Scoring
             score, trace = score_menu(menu, profile)
 
             candidates.append({
@@ -351,7 +375,21 @@ def generate_recommendation(
                 "trace": trace,
             })
 
-        # R65: No suitable candidate
+        # R44: Minimum calorie threshold
+        min_cal, _ = get_calorie_bounds(meal_targets[meal_time])
+        filtered_candidates = []
+        for c in candidates:
+            if (c["menu"].calories_kcal or 0) >= min_cal:
+                filtered_candidates.append(c)
+            else:
+                meal_rejected.append({
+                    "menu_name": c["menu"].menu_name,
+                    "menu_code": c["menu"].menu_code,
+                    "reason": f"Calories {c['menu'].calories_kcal} below minimum {min_cal} kcal (R44)"
+                })
+        candidates = filtered_candidates
+
+        # R62: No suitable candidate
         if not candidates:
             selected_menus[meal_time] = None
             score_traces[meal_time] = ["No suitable menu found"]
@@ -363,14 +401,18 @@ def generate_recommendation(
             rejected_menus.extend(meal_rejected)
             continue
 
-        # R64: Select highest scoring candidate
-        best_candidate = max(candidates, key=lambda x: x["score"])
+        # R61: Select highest scoring candidate with deterministic tie-breaker
+        def _tie_breaker(c):
+            menu = c["menu"]
+            deviation = abs((menu.calories_kcal or 0) - meal_targets[meal_time])
+            return (-c["score"], deviation, menu.calories_kcal or 0)
+        best_candidate = min(candidates, key=_tie_breaker)
         selected_menus[meal_time] = best_candidate["menu"]
         score_traces[meal_time] = best_candidate["trace"]
         no_suitable_alert[meal_time] = {"alert": False}
 
         rule_trace.append({
-            "rule_id": "R64",
+            "rule_id": "R61",
             "condition_matched": f"{len(candidates)} candidates for {meal_time}",
             "conclusion": f"Selected {best_candidate['menu'].menu_name} (score: {best_candidate['score']})",
             "message": f"Highest scoring menu for {meal_time}: {best_candidate['menu'].menu_name} with score {best_candidate['score']}"
@@ -378,12 +420,12 @@ def generate_recommendation(
 
         rejected_menus.extend(meal_rejected)
 
-    # R66: Recommendation generated
+    # R63: Recommendation generated
     if any(ns.get("alert", False) for ns in no_suitable_alert.values()):
         status = "needs_dietitian_action"
         rule_trace.append({
-            "rule_id": "R65",
-            "condition_matched": "No candidate meal exists after safety filters",
+            "rule_id": "R62",
+            "condition_matched": "No candidate meal exists after safety filters and minimum thresholds",
             "conclusion": "Dietitian modification required",
             "message": "No suitable menu found for one or more meals. Dietitian must review manually."
         })
@@ -391,7 +433,7 @@ def generate_recommendation(
         status = "pending_review"
 
     rule_trace.append({
-        "rule_id": "R66",
+        "rule_id": "R63",
         "condition_matched": "Menu recommendation generated",
         "conclusion": f"Status = {status}",
         "message": f"Recommendation created with status: {status}"
@@ -401,18 +443,26 @@ def generate_recommendation(
     # Save Recommendation
     # ======================================================
 
-    # Prevent duplicate recommendations for the same patient + cycle day
+    # Parse menu date for storage and duplicate check
+    from datetime import datetime as _dt
+    if menu_date:
+        menu_date_obj = _dt.strptime(menu_date, "%Y-%m-%d").date()
+    else:
+        menu_date_obj = _dt.now(timezone.utc).date()
+
+    # Prevent duplicate recommendations for the same patient + menu date
     existing = (
         db.query(Recommendation)
-        .filter(Recommendation.patient_id == patient.id, Recommendation.cycle_day == cycle_day)
+        .filter(Recommendation.patient_id == patient.id, Recommendation.menu_date == menu_date_obj)
         .first()
     )
     if existing:
-        raise ValueError(f"Recommendation already exists for cycle day {cycle_day}")
+        raise ValueError(f"Recommendation already exists for {menu_date_obj}")
 
     recommendation = Recommendation(
         patient_id=patient.id,
         cycle_day=cycle_day,
+        menu_date=menu_date_obj,
         status=status,
         generated_at=datetime.now(timezone.utc),
         rule_trace_json=rule_trace,
