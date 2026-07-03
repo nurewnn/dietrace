@@ -30,6 +30,7 @@ interface PatientDetailData {
   age: number;
   gender: string;
   admissionDate: string;
+  dischargeDate: string | null;
   ward: string;
   weightKg: number;
   heightCm: number;
@@ -73,6 +74,15 @@ function getAgeCategory(age: number) {
   return { label: "Adult", color: "text-success" };
 }
 
+function calculateTotalDays(admission: string, discharge: string | null) {
+  if (!admission || !discharge) return null;
+  const admDate = new Date(admission);
+  const disDate = new Date(discharge);
+  const timeDiff = disDate.getTime() - admDate.getTime();
+  const daysDiff = Math.ceil(timeDiff / (1000 * 3600 * 24)) + 1;
+  return daysDiff > 0 ? daysDiff : null;
+}
+
 function deriveEstimatedDiet(data: PatientDetailData) {
   const parts: string[] = [];
 
@@ -98,7 +108,6 @@ function deriveEstimatedDiet(data: PatientDetailData) {
 }
 
 function deriveCalorieEstimate(data: PatientDetailData) {
-  // TODO: This duplicates backend inference logic. Consider fetching from API instead.
   let factor = 30;
   const bmi = parseFloat(computeBmi(data.weightKg, data.heightCm).value);
 
@@ -128,7 +137,7 @@ export default function PatientDetail() {
   const [error, setError] = useState("");
   const [generateError, setGenerateError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [menuDate, setMenuDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [isGeneratingWeekly, setIsGeneratingWeekly] = useState(false);
 
   useEffect(() => {
     async function loadPatient() {
@@ -149,6 +158,7 @@ export default function PatientDetail() {
           age: api.age,
           gender: api.gender,
           admissionDate: api.admission_date,
+          dischargeDate: api.discharge_date,
           ward: api.ward,
           weightKg: api.health_profile?.weight_kg ?? 0,
           heightCm: api.health_profile?.height_cm ?? 0,
@@ -209,40 +219,40 @@ export default function PatientDetail() {
   const ageCat = getAgeCategory(data.age);
   const estimatedDiet = deriveEstimatedDiet(data);
   const estimatedCalories = deriveCalorieEstimate(data);
+  const totalDays = calculateTotalDays(data.admissionDate, data.dischargeDate);
 
-  const handleGenerateRecommendation = async () => {
-    if (!id) return;
+  const handleGenerateWeeklyPlan = async () => {
+    if (!id || !data.dischargeDate) {
+      setGenerateError("Discharge date is required to generate a weekly plan");
+      return;
+    }
     setGenerateError("");
-    setIsGenerating(true);
+    setIsGeneratingWeekly(true);
     try {
       const token = localStorage.getItem("dietrace_token");
-      const res = await fetch(
-        `${API_URL}/recommendations/generate/${encodeURIComponent(id)}?date=${menuDate}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
-      );
+      const res = await fetch(`${API_URL}/weekly-plans/generate/${encodeURIComponent(id)}`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+      });
       if (!checkAuth(res, navigate)) return;
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
         throw new Error(errData?.detail || `Generate failed (${res.status})`);
       }
-      const recommendation = await res.json();
-      navigate(`/dietitian/recommendation/${recommendation.id}`);
+      const weeklyPlan = await res.json();
+      navigate(`/dietitian/weekly-plan/${weeklyPlan.id}`);
     } catch (err: any) {
-      setGenerateError(err.message || "Failed to generate recommendation.");
+      setGenerateError(err.message || "Failed to generate weekly plan.");
     } finally {
-      setIsGenerating(false);
+      setIsGeneratingWeekly(false);
     }
   };
 
   return (
     <div className="patient-detail-page font-body-md text-body-md antialiased min-h-screen relative overflow-x-hidden">
-      {/* Background */}
       <div
         className="fixed inset-0 z-0"
         style={{ background: "linear-gradient(135deg, #f8faf8 100%, #ffffff 0%)" }}
@@ -373,7 +383,7 @@ export default function PatientDetail() {
               </div>
             </div>
 
-            {/* Category */}
+            {/* Category & Duration */}
             <div className="col-span-12 lg:col-span-4 liquid-glass rounded-3xl p-8 flex flex-col gap-6">
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">category</span>
@@ -389,6 +399,16 @@ export default function PatientDetail() {
                     <span className="text-sm text-on-surface-variant uppercase font-bold tracking-widest">Ward Unit</span>
                     <span className="text-on-surface font-medium">{data.ward || "—"}</span>
                   </div>
+                  <div className="flex justify-between items-center p-3 rounded-xl bg-black/5 border border-black/5">
+                    <span className="text-sm text-on-surface-variant uppercase font-bold tracking-widest">Discharge Date</span>
+                    <span className="text-on-surface font-medium">{data.dischargeDate || "—"}</span>
+                  </div>
+                  {totalDays && (
+                    <div className="flex justify-between items-center p-3 rounded-xl bg-primary/5 border border-primary/10">
+                      <span className="text-sm text-primary uppercase font-bold tracking-widest">Stay Duration</span>
+                      <span className="text-primary font-bold">{totalDays} days</span>
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -550,18 +570,16 @@ export default function PatientDetail() {
               Dashboard
             </button>
             <div className="flex flex-wrap justify-end gap-4">
-              <div className="flex items-center gap-3 px-4 py-2 bg-black/5 border border-black/10 rounded-xl">
-                <span className="material-symbols-outlined text-primary text-base">calendar_today</span>
-                <div className="flex flex-col">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">Menu Date</label>
-                  <input
-                    type="date"
-                    value={menuDate}
-                    onChange={(e) => setMenuDate(e.target.value)}
-                    className="bg-transparent text-sm text-on-surface focus:outline-none"
-                  />
-                </div>
-              </div>
+              {totalDays && (
+                <button
+                  onClick={handleGenerateWeeklyPlan}
+                  disabled={isGeneratingWeekly || !data.dischargeDate}
+                  className="px-8 py-3.5 bg-accent-teal/10 border border-accent-teal/20 rounded-xl text-accent-teal font-bold text-sm hover:bg-accent-teal/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  <span className="material-symbols-outlined text-base">{isGeneratingWeekly ? "schedule" : "calendar_month"}</span>
+                  {isGeneratingWeekly ? "Generating..." : "Generate Weekly Plan"}
+                </button>
+              )}
               <button
                 onClick={() => window.print()}
                 className="px-8 py-3.5 bg-black/5 border border-black/10 rounded-xl text-on-surface font-medium text-sm hover:bg-black/10 transition-all flex items-center gap-2"
@@ -570,16 +588,8 @@ export default function PatientDetail() {
                 Print Record
               </button>
               <button
-                onClick={handleGenerateRecommendation}
-                disabled={isGenerating}
-                className="px-8 py-3.5 bg-primary/10 border border-primary/20 rounded-xl text-primary font-bold text-sm hover:bg-primary/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <span className="material-symbols-outlined text-base">auto_awesome</span>
-                {isGenerating ? "Generating..." : "Generate Recommendation"}
-              </button>
-              <button
                 onClick={() => navigate(`/dietitian/patients/${id}/edit`)}
-                className="px-12 py-3.5 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2 shadow-lg shadow-primary/20"
+                className="px-12 py-3.5 bg-primary text-white rounded-xl font-bold text-sm hover:bg-primary/90 hover:scale-[1.02] active:scale-95 transition-all flex items-center gap-2 shadow-lg"
               >
                 <span className="material-symbols-outlined text-base">edit</span>
                 Edit Profile
