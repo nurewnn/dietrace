@@ -1,20 +1,21 @@
 """
-app/routers/patients.py — Patient CRUD + health profile endpoints.
+app/routers/patients.py -- Patient CRUD + health profile endpoints.
 
 Endpoints:
-    GET    /patients              → list patients
-    POST   /patients              → create patient identity
-    GET    /patients/{id}         → get patient with health profile
-    PUT    /patients/{id}         → update patient identity
-    DELETE /patients/{id}         → delete patient + all related records
-    PUT    /patients/{id}/health-profile → create/update health profile
+    GET    /patients              -> list patients
+    POST   /patients              -> create patient identity
+    GET    /patients/{id}         -> get patient with health profile
+    PUT    /patients/{id}         -> update patient identity
+    DELETE /patients/{id}         -> delete patient + all related records
+    PUT    /patients/{id}/health-profile -> create/update health profile
 """
 
 from typing import Optional
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlalchemy.orm import Session, joinedload, selectinload
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 
 from app.database import get_db
 from app.auth import get_current_dietitian
@@ -27,7 +28,7 @@ from app.schemas import (
 router = APIRouter(prefix="/patients", tags=["patients"])
 
 
-# ── Helpers ───────────────────────────────────────────────────────────────
+# -- Helpers --------------------------------------------------------------
 
 def _get_patient_or_404(db: Session, patient_id: str) -> Patient:
     """Look up by UUID or patient_code."""
@@ -54,7 +55,7 @@ def _get_patient_or_404(db: Session, patient_id: str) -> Patient:
     return patient
 
 
-# ── Routes ────────────────────────────────────────────────────────────────
+# -- Routes ---------------------------------------------------------------
 
 @router.get("", response_model=list[PatientRead])
 def list_patients(
@@ -65,7 +66,6 @@ def list_patients(
     """List all patients with health profile and latest recommendation."""
     query = db.query(Patient).options(
         joinedload(Patient.health_profile),
-        selectinload(Patient.recommendations),
     )
     if q:
         query = query.filter(
@@ -74,12 +74,29 @@ def list_patients(
         )
     patients = query.all()
 
-    # Attach latest recommendation from already-loaded relationships (no extra queries!)
+    # Get latest recommendation per patient using subquery + JOIN (avoids IN clause)
+    latest_rec_subq = (
+        db.query(
+            Recommendation.patient_id,
+            func.max(Recommendation.generated_at).label("max_generated_at"),
+        )
+        .group_by(Recommendation.patient_id)
+        .subquery()
+    )
+
+    latest_recs = (
+        db.query(Recommendation)
+        .join(
+            latest_rec_subq,
+            (Recommendation.patient_id == latest_rec_subq.c.patient_id)
+            & (Recommendation.generated_at == latest_rec_subq.c.max_generated_at),
+        )
+        .all()
+    )
+
+    latest_map = {r.patient_id: r for r in latest_recs}
     for patient in patients:
-        latest = None
-        if patient.recommendations:
-            latest = max(patient.recommendations, key=lambda r: r.generated_at)
-        patient.latest_recommendation = latest
+        patient.latest_recommendation = latest_map.get(patient.id)
 
     return patients
 

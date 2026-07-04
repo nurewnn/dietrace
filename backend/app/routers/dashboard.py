@@ -8,7 +8,7 @@ Endpoints:
 
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session, joinedload, selectinload
-from sqlalchemy import func
+from sqlalchemy import func, or_
 
 from app.database import get_db
 from app.auth import get_current_dietitian
@@ -141,7 +141,11 @@ def dashboard_activity(
         )
         .filter(
             ApprovalHistory.action_by == current.id,
-            ApprovalHistory.action.in_(["approved", "rejected", "modified"]),
+            or_(
+                ApprovalHistory.action == "approved",
+                ApprovalHistory.action == "rejected",
+                ApprovalHistory.action == "modified",
+            ),
         )
         .order_by(ApprovalHistory.action_at.desc())
         .limit(10)
