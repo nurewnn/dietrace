@@ -21,7 +21,7 @@ from app.database import get_db
 from app.auth import get_current_dietitian
 from app.models import (
     Patient, Recommendation, RecommendationItem, ApprovalHistory,
-    MenuOption, Dietitian,
+    MenuOption, Dietitian, WeeklyPlanDay, WeeklyPlan,
 )
 from app.schemas import (
     RecommendationRead, RecommendationReviewAction, PatientViewData, PatientViewMealItem,
@@ -49,6 +49,39 @@ def _get_recommendation_or_404(db: Session, rec_id: uuid.UUID) -> Recommendation
     if not rec:
         raise HTTPException(status_code=404, detail="Recommendation not found")
     return rec
+
+
+def _update_weekly_plan_day_status(db: Session, recommendation: Recommendation, new_status: str):
+    """Sync weekly_plan_day status when recommendation is approved/rejected/modified."""
+    if not recommendation.weekly_plan_id:
+        return
+
+    plan_day = (
+        db.query(WeeklyPlanDay)
+        .filter(WeeklyPlanDay.recommendation_id == recommendation.id)
+        .first()
+    )
+    if plan_day:
+        plan_day.status = new_status
+        plan_day.reviewed_at = func.now()
+
+    # Recalculate overall status
+    weekly_plan = (
+        db.query(WeeklyPlan)
+        .options(selectinload(WeeklyPlan.days))
+        .filter(WeeklyPlan.id == recommendation.weekly_plan_id)
+        .first()
+    )
+    if weekly_plan:
+        statuses = [d.status for d in weekly_plan.days]
+        if all(s == "approved" for s in statuses):
+            weekly_plan.overall_status = "approved"
+        elif any(s == "rejected" for s in statuses):
+            weekly_plan.overall_status = "partially_approved"
+        elif any(s in ("approved", "modified") for s in statuses):
+            weekly_plan.overall_status = "partially_approved"
+        else:
+            weekly_plan.overall_status = "pending_review"
 
 
 # ── Routes ────────────────────────────────────────────────────────────────
@@ -153,6 +186,7 @@ def approve_recommendation(
         note=payload.review_note,
     )
     db.add(history)
+    _update_weekly_plan_day_status(db, rec, "approved")
     db.commit()
     db.refresh(rec)
     return rec
@@ -183,6 +217,7 @@ def reject_recommendation(
         note=payload.review_note,
     )
     db.add(history)
+    _update_weekly_plan_day_status(db, rec, "rejected")
     db.commit()
     db.refresh(rec)
     return rec
@@ -267,6 +302,7 @@ def modify_recommendation(
         note=rec.review_note,
     )
     db.add(history)
+    _update_weekly_plan_day_status(db, rec, "modified")
     db.commit()
     db.refresh(rec)
     return rec

@@ -176,6 +176,7 @@ class LatestRecommendationRead(ORMBase):
     cycle_day: int
     menu_date: Optional[date] = None
     status: str
+    weekly_plan_id: Optional[uuid.UUID] = None
     generated_at: datetime
     reviewed_by: Optional[uuid.UUID] = None
     reviewed_at: Optional[datetime] = None
@@ -193,6 +194,7 @@ class PatientBase(BaseModel):
     gender: str
     ward: Optional[str] = None
     admission_date: Optional[date] = None
+    discharge_date: Optional[date] = None
 
 
 class PatientCreate(PatientBase):
@@ -205,6 +207,7 @@ class PatientUpdate(BaseModel):
     gender: Optional[str] = None
     ward: Optional[str] = None
     admission_date: Optional[date] = None
+    discharge_date: Optional[date] = None
 
 
 class PatientRead(PatientBase, ORMBase):
@@ -251,6 +254,7 @@ class RecommendationRead(ORMBase):
     patient: PatientRead
     cycle_day: int
     menu_date: Optional[date] = None
+    weekly_plan_id: Optional[uuid.UUID] = None
     status: str
     generated_at: datetime
     reviewed_by: Optional[uuid.UUID] = None
@@ -307,6 +311,10 @@ class WorkloadSnapshot(BaseModel):
     modified: int = 0
     reviewed: int = 0  # approved + rejected + modified
     generated: int = 0  # total recommendations generated today
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Patient View (Public)
 # ─────────────────────────────────────────────────────────────────────────
 
 class PatientViewMealItem(BaseModel):
@@ -328,3 +336,88 @@ class PatientViewData(BaseModel):
     dietitian_name: Optional[str] = None
     status: str
     items: list[PatientViewMealItem] = Field(default_factory=list)
+
+
+# ─────────────────────────────────────────────────────────────────────────
+# Weekly Plan
+# ─────────────────────────────────────────────────────────────────────────
+
+class WeeklyPlanDayRead(ORMBase):
+    id: uuid.UUID
+    day_number: int
+    cycle_day: int
+    recommendation_id: Optional[uuid.UUID] = None
+    status: str
+    review_note: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    created_at: datetime
+
+
+class WeeklyPlanDayWithRecommendationRead(ORMBase):
+    id: uuid.UUID
+    day_number: int
+    cycle_day: int
+    recommendation_id: Optional[uuid.UUID] = None
+    status: str
+    review_note: Optional[str] = None
+    reviewed_at: Optional[datetime] = None
+    created_at: datetime
+    recommendation: Optional[RecommendationRead] = None
+
+
+class WeeklyPlanRead(ORMBase):
+    id: uuid.UUID
+    patient_id: uuid.UUID
+    admission_date: date
+    discharge_date: date
+    total_days: int
+    overall_status: str
+    created_at: datetime
+    updated_at: datetime
+    days: list[WeeklyPlanDayRead] = Field(default_factory=list)
+
+
+class WeeklyPlanWithDaysRead(ORMBase):
+    id: uuid.UUID
+    patient_id: uuid.UUID
+    admission_date: date
+    discharge_date: date
+    total_days: int
+    overall_status: str
+    created_at: datetime
+    updated_at: datetime
+    days: list[WeeklyPlanDayWithRecommendationRead] = Field(default_factory=list)
+
+
+class WeeklyPlanDayBriefRead(ORMBase):
+    """Brief read for grid view — includes recommendation items summary."""
+    id: uuid.UUID
+    day_number: int
+    cycle_day: int
+    recommendation_id: Optional[uuid.UUID] = None
+    status: str
+    menu_items: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class WeeklyPlanBriefRead(ORMBase):
+    """Brief read for listing — includes day summaries."""
+    id: uuid.UUID
+    patient_id: uuid.UUID
+    admission_date: date
+    discharge_date: date
+    total_days: int
+    overall_status: str
+    created_at: datetime
+    updated_at: datetime
+    days: list[WeeklyPlanDayBriefRead] = Field(default_factory=list)
+
+
+class TodayMenuResponse(BaseModel):
+    day_number: int
+    total_days: int
+    status: str
+    patient_name: str
+    patient_code: str
+    ward: str
+    items: list[PatientViewMealItem] = Field(default_factory=list)
+    message: Optional[str] = None

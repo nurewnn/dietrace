@@ -17,6 +17,7 @@ from app.routers.patients import router as patients_router
 from app.routers.menus import router as menus_router
 from app.routers.recommendations import router as recommendations_router
 from app.routers.dashboard import router as dashboard_router
+from app.routers.weekly_plans import router as weekly_plans_router
 
 logger = logging.getLogger(__name__)
 
@@ -50,6 +51,7 @@ app.include_router(auth_router)
 app.include_router(patients_router)
 app.include_router(menus_router)
 app.include_router(recommendations_router)
+app.include_router(weekly_plans_router)
 app.include_router(dashboard_router)
 
 

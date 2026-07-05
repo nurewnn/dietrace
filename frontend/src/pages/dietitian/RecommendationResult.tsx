@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import { API_URL, checkAuth } from "../../lib/api";
 
 interface MenuItem {
@@ -45,6 +45,7 @@ interface PatientData {
   carbPreference: string;
   category: string;
   cycleDay: string;
+  patientId: string;
 }
 
 interface RecommendationData {
@@ -58,6 +59,7 @@ interface RecommendationData {
     points: { icon: string; text: string }[];
   };
   rawCycleDay: number;
+  weeklyPlanId: string | null;
 }
 
 interface MenuOption {
@@ -73,6 +75,18 @@ interface MenuOption {
   vegetarian: boolean;
 }
 
+interface PlanDay {
+  day_number: number;
+  recommendation_id: string;
+  status: string;
+}
+
+interface WeeklyPlanBrief {
+  id: string;
+  total_days: number;
+  days: PlanDay[];
+}
+
 const mealTimeLabels: Record<string, { icon: string; color: string; gradient: string }> = {
   breakfast: { icon: "wb_sunny", color: "text-amber-500", gradient: "from-amber-500/20 to-amber-600/10" },
   lunch: { icon: "sunny", color: "text-orange-500", gradient: "from-orange-500/20 to-orange-600/10" },
@@ -82,6 +96,10 @@ const mealTimeLabels: Record<string, { icon: string; color: string; gradient: st
 export default function RecommendationResult() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
+  const [searchParams] = useSearchParams();
+
+  const dayNumber = Number(searchParams.get("day")) || 1;
+  const totalDays = Number(searchParams.get("total")) || 1;
 
   const [data, setData] = useState<RecommendationData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -89,6 +107,8 @@ export default function RecommendationResult() {
   const [reviewNote, setReviewNote] = useState("");
   const [actionLoading, setActionLoading] = useState(false);
   const [swapSuccess, setSwapSuccess] = useState("");
+  const [planDays, setPlanDays] = useState<PlanDay[]>([]);
+  const [planTotalDays, setPlanTotalDays] = useState(totalDays);
 
   // Swap modal state
   const [showSwapModal, setShowSwapModal] = useState(false);
@@ -110,6 +130,18 @@ export default function RecommendationResult() {
       if (!res.ok) throw new Error(`Server returned ${res.status}: ${res.statusText}`);
       const api = await res.json();
       setData(mapApiToFrontend(api));
+
+      // Load weekly plan days for selector if available
+      if (api.weekly_plan_id) {
+        const planRes = await fetch(`${API_URL}/weekly-plans/by-id/${api.weekly_plan_id}`, {
+          headers: token ? { Authorization: `Bearer ${token}` } : {},
+        });
+        if (planRes.ok) {
+          const planData = await planRes.json();
+          setPlanDays(planData.days || []);
+          setPlanTotalDays(planData.total_days || totalDays);
+        }
+      }
     } catch (err: any) {
       setError(err.message || "Failed to load recommendation.");
     } finally {
@@ -149,7 +181,7 @@ export default function RecommendationResult() {
         status: isBlocked ? "blocked" : "ok",
         warningReason: isBlocked ? item.selection_reason : undefined,
         videoUrl: "",
-        bgImage: undefined, // REMOVED: no more background images
+        bgImage: undefined,
       };
     });
 
@@ -190,12 +222,14 @@ export default function RecommendationResult() {
         carbPreference: healthProfile.preferred_carbohydrate || "None",
         category: healthProfile.patient_category || "normal",
         cycleDay: `Day ${api.cycle_day} of 14`,
+        patientId: patient.id || "",
       },
       menuItems,
       rulesFired,
       rejectedItems,
       explanation,
       rawCycleDay: api.cycle_day || 0,
+      weeklyPlanId: api.weekly_plan_id || null,
     };
   }
 
@@ -222,7 +256,12 @@ export default function RecommendationResult() {
       });
       if (!checkAuth(res, navigate)) return;
       if (!res.ok) throw new Error(`Approve failed (${res.status})`);
-      navigate("/dietitian/dashboard");
+      // Navigate back to weekly plan if available
+      if (data?.weeklyPlanId) {
+        navigate(`/dietitian/weekly-plan/${data.patient.patientId || data.patient.code}`);
+      } else {
+        navigate("/dietitian/dashboard");
+      }
     } catch (err: any) {
       setError(err.message || "Approve failed. Please try again.");
     } finally {
@@ -244,7 +283,11 @@ export default function RecommendationResult() {
       });
       if (!checkAuth(res, navigate)) return;
       if (!res.ok) throw new Error(`Reject failed (${res.status})`);
-      navigate("/dietitian/dashboard");
+      if (data?.weeklyPlanId) {
+        navigate(`/dietitian/weekly-plan/${data.patient.patientId || data.patient.code}`);
+      } else {
+        navigate("/dietitian/dashboard");
+      }
     } catch (err: any) {
       setError(err.message || "Reject failed. Please try again.");
     } finally {
@@ -299,12 +342,17 @@ export default function RecommendationResult() {
       }
       setShowSwapModal(false);
       setSwapSuccess(`Successfully swapped ${swapMealTime} to ${menu.menu_name}`);
-      await loadRecommendation(); // Reload to show updated menu
+      await loadRecommendation();
     } catch (err: any) {
       setError(err.message || "Swap failed. Please try again.");
     } finally {
       setActionLoading(false);
     }
+  };
+
+  const navigateToDay = (recId: string) => {
+    if (!recId) return;
+    navigate(`/dietitian/recommendation/${recId}?day=${dayNumber}&total=${planTotalDays}`);
   };
 
   if (isLoading) {
@@ -334,13 +382,11 @@ export default function RecommendationResult() {
 
   return (
     <div className="recommendation-review-page min-h-screen relative overflow-x-hidden font-body-md">
-      {/* Animated Mesh Background */}
       <div className="fixed inset-0 z-0 mesh-gradient-bg" />
       <div className="fixed top-20 left-10 w-72 h-72 rounded-full bg-primary/5 blur-3xl animate-float z-0" />
       <div className="fixed bottom-20 right-10 w-96 h-96 rounded-full bg-tertiary/5 blur-3xl animate-float z-0" style={{ animationDelay: "-3s" }} />
 
       <div className="relative z-10 flex flex-col min-h-screen">
-        {/* Header */}
         <header className="w-full h-20 sticky top-0 z-50 backdrop-blur-xl bg-white/60 border-b border-white/20 flex justify-between items-center px-margin-desktop">
           <div className="flex-1 flex justify-start">
             <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-on-surface-variant hover:text-primary transition-colors group">
@@ -375,6 +421,12 @@ export default function RecommendationResult() {
               <p className="font-body-md text-on-surface-variant max-w-2xl">
                 Review rule based menu recommendations before patient release.
               </p>
+              {/* Day X of Y header */}
+              <div className="flex items-center gap-2 mt-2">
+                <span className="px-3 py-1 rounded-full bg-primary/10 text-primary text-xs font-bold border border-primary/20">
+                  Day {dayNumber} of {planTotalDays}
+                </span>
+              </div>
             </div>
             <div className="flex flex-wrap justify-end gap-2">
               <button
@@ -479,67 +531,85 @@ export default function RecommendationResult() {
                   <span className="block text-on-surface font-bold">{patient.cycleDay}</span>
                 </div>
               </div>
+
+              {/* Day Selector Tabs */}
+              {planDays.length > 0 && (
+                <div className="pt-4 border-t border-white/10">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Day Selector</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    {planDays.map((day) => {
+                      const isCurrent = day.day_number === dayNumber;
+                      const statusColor =
+                        day.status === "approved" ? "bg-success/10 text-success border-success/20" :
+                        day.status === "rejected" ? "bg-error/10 text-error border-error/20" :
+                        day.status === "modified" ? "bg-info/10 text-info border-info/20" :
+                        "bg-warning/10 text-warning border-warning/20";
+                      return (
+                        <button
+                          key={day.day_number}
+                          onClick={() => navigateToDay(day.recommendation_id)}
+                          disabled={!day.recommendation_id || isCurrent}
+                          className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
+                            isCurrent
+                              ? "bg-primary text-white border-primary shadow-lg shadow-primary/20"
+                              : `${statusColor} hover:scale-105`
+                          } disabled:opacity-50 disabled:cursor-not-allowed`}
+                        >
+                          Day {day.day_number}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {/* Menu Cards — NO IMAGES, Icon-based design */}
+            {/* Menu Cards */}
             <div className="col-span-12 grid grid-cols-1 md:grid-cols-3 gap-6">
               {menuItems.map((item) => {
                 const mealStyle = mealTimeLabels[item.mealTime.toLowerCase()] || mealTimeLabels.dinner;
                 return (
                   <div key={item.mealTime} className={`liquid-glass rounded-3xl flex flex-col relative overflow-hidden ${item.status === "blocked" ? "border-error/30" : ""}`}>
-                    {/* Icon Header (replaces photo) */}
                     <div className={`relative h-48 overflow-hidden flex items-center justify-center bg-gradient-to-br ${mealStyle.gradient}`}>
-                      {/* Decorative circles */}
                       <div className="absolute top-4 right-4 w-20 h-20 rounded-full border border-white/20" />
                       <div className="absolute bottom-4 left-4 w-12 h-12 rounded-full border border-white/10" />
-
-                      {/* Large Icon */}
                       <div className="w-20 h-20 rounded-2xl bg-white/80 backdrop-blur-sm flex items-center justify-center shadow-lg">
                         <span className={`material-symbols-outlined ${mealStyle.color} text-5xl`}>{mealStyle.icon}</span>
                       </div>
-
-                      {/* Meal label */}
                       <div className="absolute top-4 left-4 flex items-center gap-2">
                         <span className={`text-label-md font-bold ${mealStyle.color} uppercase tracking-widest bg-white/60 backdrop-blur-sm px-3 py-1 rounded-full`}>
                           {item.mealTime}
                         </span>
                       </div>
-
-                      {/* Menu code badge */}
                       <div className="absolute top-4 right-4">
                         <span className="px-3 py-1 bg-white/60 backdrop-blur-sm border border-white/30 text-[10px] font-bold rounded uppercase text-on-surface">
                           {item.code}
                         </span>
                       </div>
                     </div>
-
-                    {/* Content */}
                     <div className="p-6 flex flex-col gap-4 flex-1">
                       <h3 className={`text-2xl font-bold text-on-surface ${item.status === "blocked" ? "text-on-surface/50" : ""}`}>
                         {item.name}
                       </h3>
-
                       {item.proteinType !== "—" && (
                         <div className="flex items-center gap-2">
                           <span className="material-symbols-outlined text-on-surface-variant text-sm">restaurant</span>
                           <span className="text-sm text-on-surface-variant font-medium">{item.proteinType}</span>
                         </div>
                       )}
-
-                      {/* Tags */}
                       <div className="flex flex-wrap gap-2">
                         {item.tags.map((tag) => (
                           <span key={tag} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
-                            item.status === "blocked" 
-                              ? "bg-error/10 text-error border border-error/20" 
+                            item.status === "blocked"
+                              ? "bg-error/10 text-error border border-error/20"
                               : "bg-primary/10 text-primary border border-primary/20"
                           }`}>
                             {tag}
                           </span>
                         ))}
                       </div>
-
-                      {/* Nutrition Info */}
                       <div className="space-y-3">
                         {item.status === "blocked" && item.warningReason && (
                           <div className="bg-error/10 p-4 rounded-2xl border border-error/20">
@@ -547,7 +617,6 @@ export default function RecommendationResult() {
                             <p className="text-xs text-error leading-relaxed">{item.warningReason}</p>
                           </div>
                         )}
-
                         {item.status === "ok" && (
                           <div className="grid grid-cols-2 gap-2">
                             <div className="liquid-glass-clear p-3 rounded-xl text-center">
@@ -570,8 +639,6 @@ export default function RecommendationResult() {
                           </div>
                         )}
                       </div>
-
-                      {/* Swap Button */}
                       <button
                         onClick={() => openSwapModal(item.mealTime.toLowerCase())}
                         disabled={actionLoading}
@@ -588,7 +655,6 @@ export default function RecommendationResult() {
 
             {/* Left Column: Rules + Rejected */}
             <div className="col-span-12 lg:col-span-8 space-y-6">
-              {/* Rules Fired */}
               <div className="liquid-glass rounded-3xl overflow-hidden">
                 <div className="px-8 py-6 border-b border-white/10 flex items-center justify-between">
                   <div className="flex items-center gap-3">
@@ -611,8 +677,6 @@ export default function RecommendationResult() {
                   ))}
                 </div>
               </div>
-
-              {/* Rejected Menu Reasons */}
               <div className="liquid-glass rounded-3xl overflow-hidden">
                 <details className="group" open>
                   <summary className="px-8 py-6 flex items-center justify-between cursor-pointer hover:bg-white/5 transition-colors list-none">
@@ -654,7 +718,6 @@ export default function RecommendationResult() {
 
             {/* Right Column: Explanation + Decision */}
             <div className="col-span-12 lg:col-span-4 space-y-6">
-              {/* Explanation */}
               <div className="liquid-glass p-8 rounded-3xl flex flex-col gap-6">
                 <div className="flex items-center gap-3 border-b border-white/10 pb-5">
                   <span className="material-symbols-outlined text-primary">lightbulb</span>
@@ -672,8 +735,6 @@ export default function RecommendationResult() {
                   </div>
                 </div>
               </div>
-
-              {/* Dietitian Decision — NO Modify button */}
               <div className="liquid-glass p-8 rounded-3xl flex flex-col gap-6 border-t-2 border-primary/30 shadow-lg">
                 <div className="flex items-center gap-3">
                   <span className="material-symbols-outlined text-primary">clinical_notes</span>
@@ -716,12 +777,16 @@ export default function RecommendationResult() {
           </div>
 
           {/* Footer */}
-          <footer className="mt-12 flex justify-between items-center">
+          <footer className="mt-12 flex flex-col md:flex-row justify-between items-center gap-4">
             <button onClick={() => navigate("/dietitian/dashboard")} className="px-8 py-3.5 liquid-glass rounded-xl text-on-surface-variant font-medium text-sm hover:text-primary hover:bg-primary/5 transition-all flex items-center gap-2">
               <span className="material-symbols-outlined text-base">arrow_back</span>
               Dashboard
             </button>
             <div className="flex gap-4">
+              <button onClick={() => data?.weeklyPlanId ? navigate(`/dietitian/weekly-plan/${data.patient.patientId || data.patient.code}`) : navigate(`/dietitian/patients/${patient.code}`)} className="px-8 py-3.5 liquid-glass rounded-xl text-primary font-bold text-sm hover:bg-primary/10 transition-all flex items-center gap-2">
+                <span className="material-symbols-outlined text-base">calendar_view_week</span>
+                Back to Weekly Plan
+              </button>
               <button onClick={() => navigate(`/dietitian/patients/${patient.code}`)} className="px-8 py-3.5 liquid-glass rounded-xl text-primary font-bold text-sm hover:bg-primary/10 transition-all flex items-center gap-2">
                 <span className="material-symbols-outlined text-base">patient_list</span>
                 Patient Details

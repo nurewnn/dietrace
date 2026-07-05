@@ -108,6 +108,7 @@ class Patient(Base):
     gender: Mapped[str] = mapped_column(Text, nullable=False)
     ward: Mapped[Optional[str]] = mapped_column(Text)
     admission_date: Mapped[Optional[date]] = mapped_column(Date)
+    discharge_date: Mapped[Optional[date]] = mapped_column(Date)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, nullable=False, server_default=text("now()")
     )
@@ -119,6 +120,9 @@ class Patient(Base):
         back_populates="patient", uselist=False, cascade="all, delete-orphan"
     )
     recommendations: Mapped[list["Recommendation"]] = relationship(
+        back_populates="patient", cascade="all, delete-orphan"
+    )
+    weekly_plans: Mapped[list["WeeklyPlan"]] = relationship(
         back_populates="patient", cascade="all, delete-orphan"
     )
 
@@ -188,6 +192,9 @@ class Recommendation(Base):
     patient_id: Mapped[uuid.UUID] = mapped_column(
         UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False
     )
+    weekly_plan_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("weekly_plans.id"), nullable=True
+    )
     cycle_day: Mapped[int] = mapped_column(Integer, nullable=False)
     menu_date: Mapped[Optional[date]] = mapped_column(Date, nullable=True)
     status: Mapped[str] = mapped_column(
@@ -221,6 +228,12 @@ class Recommendation(Base):
     approval_history: Mapped[list["ApprovalHistory"]] = relationship(
         back_populates="recommendation", cascade="all, delete-orphan"
     )
+    weekly_plan: Mapped[Optional["WeeklyPlan"]] = relationship(
+        back_populates="recommendations"
+    )
+    weekly_plan_day: Mapped[Optional["WeeklyPlanDay"]] = relationship(
+        back_populates="recommendation", uselist=False
+    )
 
 
 class RecommendationItem(Base):
@@ -248,6 +261,66 @@ class RecommendationItem(Base):
     recommendation: Mapped["Recommendation"] = relationship(back_populates="items")
     menu_option: Mapped[Optional["MenuOption"]] = relationship(
         back_populates="recommendation_items"
+    )
+
+
+class WeeklyPlan(Base):
+    __tablename__ = "weekly_plans"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("patients.id"), nullable=False
+    )
+    admission_date: Mapped[date] = mapped_column(Date, nullable=False)
+    discharge_date: Mapped[date] = mapped_column(Date, nullable=False)
+    total_days: Mapped[int] = mapped_column(Integer, nullable=False)
+    overall_status: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'pending_review'::text")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=text("now()")
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=text("now()")
+    )
+
+    patient: Mapped["Patient"] = relationship(back_populates="weekly_plans")
+    days: Mapped[list["WeeklyPlanDay"]] = relationship(
+        back_populates="weekly_plan", cascade="all, delete-orphan", order_by="WeeklyPlanDay.day_number"
+    )
+    recommendations: Mapped[list["Recommendation"]] = relationship(
+        back_populates="weekly_plan"
+    )
+
+
+class WeeklyPlanDay(Base):
+    __tablename__ = "weekly_plan_days"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), primary_key=True, server_default=text("gen_random_uuid()")
+    )
+    weekly_plan_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("weekly_plans.id"), nullable=False
+    )
+    day_number: Mapped[int] = mapped_column(Integer, nullable=False)
+    cycle_day: Mapped[int] = mapped_column(Integer, nullable=False)
+    recommendation_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("recommendations.id"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(
+        Text, nullable=False, server_default=text("'pending_review'::text")
+    )
+    review_note: Mapped[Optional[str]] = mapped_column(Text)
+    reviewed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime, nullable=False, server_default=text("now()")
+    )
+
+    weekly_plan: Mapped["WeeklyPlan"] = relationship(back_populates="days")
+    recommendation: Mapped[Optional["Recommendation"]] = relationship(
+        back_populates="weekly_plan_day"
     )
 
 

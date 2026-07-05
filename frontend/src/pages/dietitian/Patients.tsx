@@ -54,6 +54,7 @@ export default function Patients() {
   const [gender, setGender] = useState("");
   const [ward, setWard] = useState("");
   const [admissionDate, setAdmissionDate] = useState("");
+  const [dischargeDate, setDischargeDate] = useState("");
 
   const [diabetes, setDiabetes] = useState(false);
   const [hypertension, setHypertension] = useState(false);
@@ -86,7 +87,6 @@ export default function Patients() {
   const [submitSuccess, setSubmitSuccess] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
   const [generateError, setGenerateError] = useState("");
-  const [menuDate, setMenuDate] = useState<string>(new Date().toISOString().split("T")[0]);
 
   useEffect(() => {
     if (!isEditMode) {
@@ -120,6 +120,7 @@ export default function Patients() {
       setGender(api.gender ?? "");
       setWard(api.ward ?? "");
       setAdmissionDate(api.admission_date ?? "");
+      setDischargeDate(api.discharge_date ?? "");
 
       const hp = api.health_profile ?? {};
       setDiabetes(hp.has_diabetes ?? false);
@@ -179,6 +180,7 @@ export default function Patients() {
       gender,
       ward: ward.trim(),
       admission_date: admissionDate,
+      discharge_date: dischargeDate,
     };
 
     const healthProfilePayload = {
@@ -241,14 +243,14 @@ export default function Patients() {
     }
   };
 
-  const handleGenerateRecommendation = async () => {
+  const handleGenerateWeeklyPlan = async () => {
     if (!savedPatientId) return;
     setGenerateError("");
     setIsGenerating(true);
     try {
       const token = localStorage.getItem("dietrace_token");
       const res = await fetch(
-        `${API_URL}/recommendations/generate/${savedPatientId}?date=${menuDate}`,
+        `${API_URL}/weekly-plans/generate/${savedPatientId}`,
         {
           method: "POST",
           headers: {
@@ -263,9 +265,9 @@ export default function Patients() {
         throw new Error(errData?.detail || `HTTP ${res.status}`);
       }
       const data = await res.json();
-      navigate(`/dietitian/recommendation/${data.id}`);
+      navigate(`/dietitian/weekly-plan/${savedPatientId}`);
     } catch (err: any) {
-      setGenerateError(err.message || "Failed to generate recommendation.");
+      setGenerateError(err.message || "Failed to generate weekly plan.");
     } finally {
       setIsGenerating(false);
     }
@@ -390,6 +392,20 @@ export default function Patients() {
                     <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Admission Date</label>
                     <input className="w-full px-4 py-3 text-sm" type="date" value={admissionDate} onChange={(e) => setAdmissionDate(e.target.value)} />
                   </div>
+                  <div className="flex flex-col gap-1.5">
+                    <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Discharge Date</label>
+                    <input className="w-full px-4 py-3 text-sm" type="date" value={dischargeDate} onChange={(e) => setDischargeDate(e.target.value)} />
+                  </div>
+                  {admissionDate && dischargeDate && (
+                    <div className="flex flex-col gap-1.5 md:col-span-2">
+                      <div className="p-3 rounded-xl bg-primary/5 border border-primary/10 flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Stay Duration</span>
+                        <span className="text-sm font-bold text-primary">
+                          {Math.max(0, Math.ceil((new Date(dischargeDate).getTime() - new Date(admissionDate).getTime()) / (1000 * 60 * 60 * 24)) + 1)} days
+                        </span>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -669,28 +685,15 @@ export default function Patients() {
               </button>
 
               {/* Menu Date Picker - Only one, in footer */}
-              <div className="flex items-center gap-3">
-                <span className="material-symbols-outlined text-primary text-sm">calendar_today</span>
-                <div className="flex flex-col">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">Menu Date</label>
-                  <input
-                    type="date"
-                    value={menuDate}
-                    onChange={(e) => setMenuDate(e.target.value)}
-                    className="bg-black/5 border border-black/10 rounded-lg px-3 py-2 text-sm text-on-surface focus:border-primary focus:outline-none transition-all"
-                  />
-                </div>
-              </div>
-
               <button
                 type="button"
-                onClick={handleGenerateRecommendation}
+                onClick={handleGenerateWeeklyPlan}
                 disabled={!savedPatientId || isGenerating}
                 title={!savedPatientId ? "Save this patient first" : undefined}
                 className="group flex items-center gap-2 px-8 py-4 rounded-xl bg-primary/10 border border-primary/20 text-primary enabled:hover:bg-primary/20 transition-all text-sm font-medium disabled:text-primary/40 disabled:cursor-not-allowed"
               >
                 <span className="material-symbols-outlined text-base">auto_awesome</span>
-                {isGenerating ? "Generating..." : "Generate Recommendation"}
+                {isGenerating ? "Generating..." : "Generate Weekly Plan"}
               </button>
 
               <button

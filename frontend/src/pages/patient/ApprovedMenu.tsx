@@ -26,6 +26,7 @@ interface ApprovedMenuData {
   dietitianName: string;
   status: MenuStatus;
   meals: MealItem[];
+  message?: string;
 }
 
 const mealStyles: Record<MealTime, { icon: string; textColor: string; borderColor: string; bgGradient: string; accentColor: string; iconBg: string }> = {
@@ -107,12 +108,28 @@ export default function ApprovedMenu() {
       setIsLoading(true);
       setError("");
       try {
-        const res = await fetch(`${API_URL}/patient-view/${encodeURIComponent(patientId)}`);
+        const res = await fetch(`${API_URL}/weekly-plans/patient-view/${encodeURIComponent(patientId)}/today`);
         if (!res.ok) {
           if (res.status === 404) throw new Error("Patient not found.");
           throw new Error(`Server returned ${res.status}: ${res.statusText}`);
         }
         const apiData = await res.json();
+
+        // Handle special messages
+        if (apiData.message) {
+          setData({
+            patientName: apiData.patient_name,
+            patientCode: apiData.patient_code,
+            ward: apiData.ward,
+            dietitianName: "On-duty Dietitian",
+            status: apiData.status,
+            meals: [],
+            message: apiData.message,
+          });
+          setIsLoading(false);
+          return;
+        }
+
         setData({
           patientName: apiData.patient_name,
           patientCode: apiData.patient_code,
@@ -244,7 +261,19 @@ export default function ApprovedMenu() {
           </div>
         )}
 
-        {!isLoading && patientId && data && data.status !== "approved" && (
+        {!isLoading && patientId && data && (data.status === "discharged" || data.status === "not_started" || data.status === "no_plan" || data.status === "error" || data.message) && (
+          <div className="liquid-glass p-10 rounded-3xl max-w-lg text-center">
+            <span className="material-symbols-outlined text-4xl text-on-surface-variant mb-4 block">
+              {data.status === "discharged" ? "logout" : data.status === "not_started" ? "event_busy" : "info"}
+            </span>
+            <p className="text-on-surface font-semibold text-lg mb-2">{data.message || "No menu available."}</p>
+            <button onClick={() => navigate("/patient/select")} className="mt-6 px-6 py-3 rounded-xl border border-white/20 text-on-surface-variant hover:text-primary hover:bg-primary/5 text-sm font-medium transition-all">
+              Back to Patient Access
+            </button>
+          </div>
+        )}
+
+        {!isLoading && patientId && data && data.status !== "approved" && data.status !== "modified" && !data.message && (
           <div className="liquid-glass p-10 rounded-3xl max-w-lg text-center">
             <span className="material-symbols-outlined text-4xl text-warning mb-4 block">hourglass_empty</span>
             <p className="text-on-surface font-semibold text-lg mb-2">Your menu is currently pending dietitian review.</p>
@@ -255,7 +284,7 @@ export default function ApprovedMenu() {
           </div>
         )}
 
-        {!isLoading && patientId && data && data.status === "approved" && (
+        {!isLoading && patientId && data && (data.status === "approved" || data.status === "modified") && (
           <>
             {/* Patient Summary */}
             <div className="w-full max-w-4xl liquid-glass-strong p-8 rounded-3xl mb-8">

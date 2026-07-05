@@ -30,6 +30,7 @@ interface PatientDetailData {
   age: number;
   gender: string;
   admissionDate: string;
+  dischargeDate: string;
   ward: string;
   weightKg: number;
   heightCm: number;
@@ -128,7 +129,6 @@ export default function PatientDetail() {
   const [error, setError] = useState("");
   const [generateError, setGenerateError] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
-  const [menuDate, setMenuDate] = useState(() => new Date().toISOString().slice(0, 10));
 
   useEffect(() => {
     async function loadPatient() {
@@ -149,6 +149,7 @@ export default function PatientDetail() {
           age: api.age,
           gender: api.gender,
           admissionDate: api.admission_date,
+          dischargeDate: api.discharge_date,
           ward: api.ward,
           weightKg: api.health_profile?.weight_kg ?? 0,
           heightCm: api.health_profile?.height_cm ?? 0,
@@ -210,14 +211,14 @@ export default function PatientDetail() {
   const estimatedDiet = deriveEstimatedDiet(data);
   const estimatedCalories = deriveCalorieEstimate(data);
 
-  const handleGenerateRecommendation = async () => {
+  const handleGenerateWeeklyPlan = async () => {
     if (!id) return;
     setGenerateError("");
     setIsGenerating(true);
     try {
       const token = localStorage.getItem("dietrace_token");
       const res = await fetch(
-        `${API_URL}/recommendations/generate/${encodeURIComponent(id)}?date=${menuDate}`,
+        `${API_URL}/weekly-plans/generate/${encodeURIComponent(id)}`,
         {
           method: "POST",
           headers: {
@@ -231,10 +232,9 @@ export default function PatientDetail() {
         const errData = await res.json().catch(() => null);
         throw new Error(errData?.detail || `Generate failed (${res.status})`);
       }
-      const recommendation = await res.json();
-      navigate(`/dietitian/recommendation/${recommendation.id}`);
+      navigate(`/dietitian/weekly-plan/${id}`);
     } catch (err: any) {
-      setGenerateError(err.message || "Failed to generate recommendation.");
+      setGenerateError(err.message || "Failed to generate weekly plan.");
     } finally {
       setIsGenerating(false);
     }
@@ -352,7 +352,28 @@ export default function PatientDetail() {
                   <p className="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Admission Date</p>
                   <p className="text-lg font-medium text-on-surface">{data.admissionDate || "—"}</p>
                 </div>
+                <div className="space-y-1">
+                  <p className="text-[10px] uppercase text-on-surface-variant font-bold tracking-widest">Discharge Date</p>
+                  <p className="text-lg font-medium text-on-surface">{data.dischargeDate || "—"}</p>
+                </div>
               </div>
+              {data.admissionDate && data.dischargeDate && (
+                <div className="pt-4 border-t border-black/5">
+                  <div className="flex items-center gap-3 p-4 rounded-2xl bg-primary/5 border border-primary/10">
+                    <span className="material-symbols-outlined text-primary">event</span>
+                    <div>
+                      <p className="text-[10px] font-bold uppercase tracking-widest text-primary">Stay Duration</p>
+                      <p className="text-lg font-bold text-on-surface">
+                        {Math.max(0, Math.ceil((new Date(data.dischargeDate).getTime() - new Date(data.admissionDate).getTime()) / (1000 * 60 * 60 * 24)) + 1)} days
+                        <span className="text-sm font-normal text-on-surface-variant ml-2">
+                          ({data.admissionDate} → {data.dischargeDate})
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 border-t border-black/5">
                 <div className="bg-black/5 p-4 rounded-2xl border border-black/5 text-center">
                   <p className="text-[10px] uppercase text-on-surface-variant font-bold mb-2">Weight</p>
@@ -550,18 +571,6 @@ export default function PatientDetail() {
               Dashboard
             </button>
             <div className="flex flex-wrap justify-end gap-4">
-              <div className="flex items-center gap-3 px-4 py-2 bg-black/5 border border-black/10 rounded-xl">
-                <span className="material-symbols-outlined text-primary text-base">calendar_today</span>
-                <div className="flex flex-col">
-                  <label className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">Menu Date</label>
-                  <input
-                    type="date"
-                    value={menuDate}
-                    onChange={(e) => setMenuDate(e.target.value)}
-                    className="bg-transparent text-sm text-on-surface focus:outline-none"
-                  />
-                </div>
-              </div>
               <button
                 onClick={() => window.print()}
                 className="px-8 py-3.5 bg-black/5 border border-black/10 rounded-xl text-on-surface font-medium text-sm hover:bg-black/10 transition-all flex items-center gap-2"
@@ -570,12 +579,12 @@ export default function PatientDetail() {
                 Print Record
               </button>
               <button
-                onClick={handleGenerateRecommendation}
+                onClick={handleGenerateWeeklyPlan}
                 disabled={isGenerating}
                 className="px-8 py-3.5 bg-primary/10 border border-primary/20 rounded-xl text-primary font-bold text-sm hover:bg-primary/20 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 <span className="material-symbols-outlined text-base">auto_awesome</span>
-                {isGenerating ? "Generating..." : "Generate Recommendation"}
+                {isGenerating ? "Generating..." : "Generate Weekly Plan"}
               </button>
               <button
                 onClick={() => navigate(`/dietitian/patients/${id}/edit`)}
