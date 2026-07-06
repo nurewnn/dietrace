@@ -59,7 +59,7 @@ app.add_middleware(
     allow_origins=origins,  # ← ← ← GUNA origins, bukan allow_origins
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Authorization", "Content-Type", "Accept"],
+    allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
     expose_headers=["*"],
     max_age=3600,
 )
