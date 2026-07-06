@@ -277,13 +277,7 @@ def passes_constraints(
     if profile.has_high_cholesterol and menu.fat_level.lower() == "high":
         reasons.append("high fat")
 
-    # R53: Fibre constraint (normal/post-op patients need adequate fibre)
-    if (
-        profile.patient_category in ("normal", "post_operation")
-        and menu.fibre_level.lower() == "low"
-    ):
-        reasons.append("low fibre")
-
+    # R53 REMOVED: Fibre moved to scoring (soft constraint)
     # R54: Oil constraint for high cholesterol patients
     if (
         profile.has_high_cholesterol
@@ -299,13 +293,7 @@ def passes_constraints(
     if profile.has_chewing_problem and not menu.suitable_chewing:
         reasons.append("not chewing friendly")
 
-    # R52: Low fibre (pre-operation)
-    if (
-        profile.patient_category == "pre_operation"
-        and menu.fibre_level.lower() != "low"
-    ):
-        reasons.append("not low fibre")
-
+    # R52 REMOVED: Fibre moved to scoring (soft constraint)
     # Pregnancy suitability
     if (
         profile.patient_category == "pregnant"
@@ -389,6 +377,21 @@ def score_menu(
     ):
         score += 40
         trace.append("+40 post-op high protein (R59)")
+
+    # R58b: Fibre bonus for normal/post-op patients (soft constraint)
+    if profile.patient_category in ("normal", "post_operation"):
+        if menu.fibre_level.lower() == "high":
+            score += 15
+            trace.append("+15 high fibre bonus (R58b)")
+        elif menu.fibre_level.lower() == "low":
+            score -= 5
+            trace.append("-5 low fibre penalty (R58b)")
+
+    # R58c: Pre-op low fibre bonus (soft constraint)
+    if profile.patient_category == "pre_operation":
+        if menu.fibre_level.lower() == "low":
+            score += 10
+            trace.append("+10 low fibre for pre-op (R58c)")
 
     # R60: No preference match
     if score == 0:
