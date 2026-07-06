@@ -218,7 +218,7 @@ export default function WeeklyPlanPage() {
             <p className="text-on-surface-variant max-w-2xl">
               {plan ? (
                 <>
-                  Admission: <strong>{plan.admission_date}</strong> → Discharge: <strong>{plan.discharge_date}</strong>
+                  Admission: <strong>{formatDate(plan.admission_date)}</strong> → Discharge: <strong>{formatDate(plan.discharge_date)}</strong>
                   {" "}•{" "}
                   <span className="text-primary font-bold">{plan.total_days} days stay</span>
                 </>
