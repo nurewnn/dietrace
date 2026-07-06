@@ -264,7 +264,7 @@ export default function Patients() {
         const errData = await res.json().catch(() => null);
         throw new Error(errData?.detail || `HTTP ${res.status}`);
       }
-      const data = await res.json();
+      await res.json();
       navigate(`/dietitian/weekly-plan/${savedPatientId}`);
     } catch (err: any) {
       setGenerateError(err.message || "Failed to generate weekly plan.");
@@ -711,5 +711,7 @@ export default function Patients() {
         </div>
       </main>
     </div>
+  );
+}
   );
 }
