@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { API_URL, checkAuth } from "../../lib/api";
+import { API_URL, checkAuth, apiFetch } from "../../lib/api";
 
 const allergyOptions = [
   { label: "Seafood", value: "seafood" },
@@ -248,17 +248,9 @@ export default function Patients() {
     setGenerateError("");
     setIsGenerating(true);
     try {
-      const token = localStorage.getItem("dietrace_token");
-      const res = await fetch(
-        `${API_URL}/weekly-plans/generate/${savedPatientId}`,
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-        }
-      );
+      const res = apiFetch(`/patients/${id}`);
+         if (!checkAuth(res, navigate)) return;
+      
       if (!checkAuth(res, navigate)) return;
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
