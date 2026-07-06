@@ -161,10 +161,10 @@ def generate_recommendation(
         else:
             adjustment = 500
             cat_rule = "R19"
-    elif profile.patient_category == "pre-operation":
+    elif profile.patient_category == "pre_operation":
         adjustment = -200
         cat_rule = "R20"
-    elif profile.patient_category == "post-operation":
+    elif profile.patient_category == "post_operation":
         adjustment = 200
         cat_rule = "R21"
     else:
@@ -223,13 +223,13 @@ def generate_recommendation(
             "message": "High cholesterol detected: high fat meals will be excluded"
         })
 
-    # R29: Fibre constraint for normal/post-op patients
+    # R29: Fibre scoring preference for normal/post-op patients (SOFT CONSTRAINT - scoring, not hard filter)
     if profile.patient_category in ("normal", "post_operation"):
         rule_trace.append({
             "rule_id": "R29",
             "condition_matched": f"Patient category = {profile.patient_category}",
-            "conclusion": "Adequate fibre constraint active",
-            "message": f"{profile.patient_category}: low-fibre meals will be excluded"
+            "conclusion": "High fibre preference active — bonus scoring applied",
+            "message": f"{profile.patient_category}: high-fibre meals receive scoring bonus (R58b), low-fibre meals receive penalty"
         })
 
     # R30: Oil constraint for high cholesterol patients
@@ -288,12 +288,13 @@ def generate_recommendation(
             "conclusion": "Chewing filter active",
             "message": "Chewing difficulty: only soft/chewing-friendly meals allowed"
         })
-    if profile.patient_category == "pre-operation":
+    # R42: Pre-operation low fibre preference (SOFT CONSTRAINT - scoring bonus, not hard filter)
+    if profile.patient_category == "pre_operation":
         rule_trace.append({
             "rule_id": "R42",
             "condition_matched": "Patient is pre-operation",
-            "conclusion": "Low fibre filter active",
-            "message": "Pre-op: low fibre meals required"
+            "conclusion": "Low fibre preference active — bonus scoring applied",
+            "message": "Pre-op: low-fibre meals receive scoring bonus (R58c)"
         })
 
     # ======================================================
@@ -345,17 +346,14 @@ def generate_recommendation(
                     elif r == "high fat": reason_parts.append("high fat (R48)")
                     elif r == "not vegetarian": reason_parts.append("not vegetarian (R50)")
                     elif r == "not chewing friendly": reason_parts.append("not chewing-friendly (R51)")
-                    elif r == "not low fibre": reason_parts.append("not low fibre (R52)")
+                    # R52/R53 REMOVED — fibre is now soft constraint (scoring)
                     elif r == "not suitable for pregnancy": reason_parts.append("not pregnancy-safe")
                     elif r == "not suitable for pre_operation": reason_parts.append("not pre-op suitable")
                     elif r == "not suitable for post_operation": reason_parts.append("not post-op suitable")
                     elif r == "contains allergy ingredient":
                         allergies = profile.allergies or []
                         reason_parts.append(f"contains allergen ({', '.join(allergies)})")
-                    elif r == "low fibre":
-                        reason_parts.append("low fibre (R53)")
-                    elif r == "high oil":
-                        reason_parts.append("high oil (R54)")
+                    elif r == "high oil": reason_parts.append("high oil (R54)")
                     else:
                         reason_parts.append(r)
 
@@ -410,6 +408,58 @@ def generate_recommendation(
         selected_menus[meal_time] = best_candidate["menu"]
         score_traces[meal_time] = best_candidate["trace"]
         no_suitable_alert[meal_time] = {"alert": False}
+
+        # Log scoring rules applied
+        for trace_entry in best_candidate["trace"]:
+            if "R56" in trace_entry:
+                rule_trace.append({
+                    "rule_id": "R56",
+                    "condition_matched": f"Preferred protein = {profile.preferred_protein}",
+                    "conclusion": f"Menu protein type = {best_candidate['menu'].protein_type}",
+                    "message": trace_entry
+                })
+            elif "R57" in trace_entry:
+                rule_trace.append({
+                    "rule_id": "R57",
+                    "condition_matched": f"Preferred carbohydrate = {profile.preferred_carbohydrate}",
+                    "conclusion": f"Menu carbohydrate type = {best_candidate['menu'].carbohydrate_type}",
+                    "message": trace_entry
+                })
+            elif "R58" in trace_entry and "vegetarian" in trace_entry.lower():
+                rule_trace.append({
+                    "rule_id": "R58",
+                    "condition_matched": "Patient is vegetarian",
+                    "conclusion": "Vegetarian menu selected",
+                    "message": trace_entry
+                })
+            elif "R58b" in trace_entry:
+                rule_trace.append({
+                    "rule_id": "R58b",
+                    "condition_matched": f"Patient category = {profile.patient_category}, Menu fibre = {best_candidate['menu'].fibre_level}",
+                    "conclusion": "Fibre scoring bonus/penalty applied",
+                    "message": trace_entry
+                })
+            elif "R58c" in trace_entry:
+                rule_trace.append({
+                    "rule_id": "R58c",
+                    "condition_matched": f"Patient category = pre_operation, Menu fibre = {best_candidate['menu'].fibre_level}",
+                    "conclusion": "Low fibre scoring bonus applied",
+                    "message": trace_entry
+                })
+            elif "R59" in trace_entry:
+                rule_trace.append({
+                    "rule_id": "R59",
+                    "condition_matched": "Patient is post-operation",
+                    "conclusion": "High protein menu selected",
+                    "message": trace_entry
+                })
+            elif "R60" in trace_entry:
+                rule_trace.append({
+                    "rule_id": "R60",
+                    "condition_matched": "No preference match",
+                    "conclusion": "No scoring bonus applied",
+                    "message": trace_entry
+                })
 
         rule_trace.append({
             "rule_id": "R61",
