@@ -263,9 +263,9 @@ export default function Dashboard() {
     loadWorkload();
   }, []);
 
-  // 3D tilt effect on stat cards
+  // 3D tilt effect on stat cards ONLY (not table)
   useEffect(() => {
-    const panels = wrapperRef.current?.querySelectorAll<HTMLElement>(".liquid-glass-panel");
+    const panels = wrapperRef.current?.querySelectorAll<HTMLElement>(".stat-card-tilt");
     if (!panels) return;
 
     const handlers: Array<{ el: HTMLElement; move: (e: MouseEvent) => void; leave: () => void }> = [];
@@ -624,7 +624,7 @@ export default function Dashboard() {
         <div className="p-8 space-y-8 max-w-[1600px] mx-auto w-full">
           {/* Error Banner */}
           {error && (
-            <div className="liquid-glass-panel px-6 py-4 rounded-xl flex items-center gap-3 border-l-4 border-l-error">
+            <div className="liquid-glass px-6 py-4 rounded-xl flex items-center gap-3 border-l-4 border-l-error">
               <span className="material-symbols-outlined text-error text-lg">error</span>
               <span className="text-sm text-on-surface">{error}</span>
               <button
@@ -644,7 +644,7 @@ export default function Dashboard() {
                 <div
                   key={card.label}
                   onClick={() => setActiveFilter((prev) => (prev === card.status ? "all" : card.status))}
-                  className={`liquid-glass-panel p-6 rounded-2xl group cursor-pointer border-t-2 transition-all duration-300 ${
+                  className={`liquid-glass-panel stat-card-tilt p-6 rounded-2xl group cursor-pointer border-t-2 transition-all duration-300 ${
                     isActive
                       ? "ring-2 ring-primary bg-primary/[0.03] scale-[1.02] shadow-md border-t-primary"
                       : `${card.accent} hover:scale-[1.01]`
@@ -662,7 +662,7 @@ export default function Dashboard() {
           </div>
 
           {/* Patients Table */}
-          <div className="liquid-glass-panel rounded-3xl overflow-hidden flex flex-col h-[600px]">
+          <div className="liquid-glass rounded-3xl overflow-hidden flex flex-col h-[600px]">
             <div className="p-8 border-b border-black/5 flex items-center justify-between bg-black/5">
               <div className="flex items-center gap-4">
                 <div className="w-10 h-10 rounded-xl bg-primary/10 flex items-center justify-center text-primary">
