@@ -12,6 +12,8 @@ Endpoints:
 
 from typing import Optional
 import uuid
+import logging
+import traceback
 
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
@@ -25,6 +27,7 @@ from app.schemas import (
     PatientHealthProfileCreate, PatientHealthProfileUpdate, PatientHealthProfileRead,
 )
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/patients", tags=["patients"])
 
 
@@ -64,41 +67,65 @@ def list_patients(
     q: Optional[str] = None,
 ):
     """List all patients with health profile and latest recommendation."""
-    query = db.query(Patient).options(
-        joinedload(Patient.health_profile),
-    )
-    if q:
-        query = query.filter(
-            (Patient.full_name.ilike(f"%{q}%")) |
-            (Patient.patient_code.ilike(f"%{q}%"))
+    try:
+        logger.info(f"GET /patients called by dietitian: {current.username}")
+
+        query = db.query(Patient).options(
+            joinedload(Patient.health_profile),
         )
-    patients = query.all()
+        if q:
+            query = query.filter(
+                (Patient.full_name.ilike(f"%{q}%")) |
+                (Patient.patient_code.ilike(f"%{q}%"))
+            )
+        patients = query.all()
+        logger.info(f"Found {len(patients)} patients")
 
-    # Get latest recommendation per patient using subquery + JOIN (avoids IN clause)
-    latest_rec_subq = (
-        db.query(
-            Recommendation.patient_id,
-            func.max(Recommendation.generated_at).label("max_generated_at"),
+        # Get latest recommendation per patient using subquery + JOIN (avoids IN clause)
+        latest_rec_subq = (
+            db.query(
+                Recommendation.patient_id,
+                func.max(Recommendation.generated_at).label("max_generated_at"),
+            )
+            .group_by(Recommendation.patient_id)
+            .subquery()
         )
-        .group_by(Recommendation.patient_id)
-        .subquery()
-    )
 
-    latest_recs = (
-        db.query(Recommendation)
-        .join(
-            latest_rec_subq,
-            (Recommendation.patient_id == latest_rec_subq.c.patient_id)
-            & (Recommendation.generated_at == latest_rec_subq.c.max_generated_at),
+        latest_recs = (
+            db.query(Recommendation)
+            .join(
+                latest_rec_subq,
+                (Recommendation.patient_id == latest_rec_subq.c.patient_id)
+                & (Recommendation.generated_at == latest_rec_subq.c.max_generated_at),
+            )
+            .all()
         )
-        .all()
-    )
 
-    latest_map = {r.patient_id: r for r in latest_recs}
-    for patient in patients:
-        patient.latest_recommendation = latest_map.get(patient.id)
+        latest_map = {r.patient_id: r for r in latest_recs}
 
-    return patients
+        # FIX: Build response manually to avoid Pydantic validation issues with computed properties
+        result = []
+        for patient in patients:
+            patient_dict = {
+                "id": patient.id,
+                "patient_code": patient.patient_code,
+                "full_name": patient.full_name,
+                "age": patient.age,
+                "gender": patient.gender,
+                "ward": patient.ward,
+                "admission_date": patient.admission_date,
+                "discharge_date": patient.discharge_date,
+                "created_at": patient.created_at,
+                "updated_at": patient.updated_at,
+                "health_profile": patient.health_profile,
+                "latest_recommendation": latest_map.get(patient.id),
+            }
+            result.append(patient_dict)
+
+        return result
+    except Exception as e:
+        logger.error(f"ERROR in list_patients: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.post("", response_model=PatientRead, status_code=status.HTTP_201_CREATED)
@@ -108,16 +135,36 @@ def create_patient(
     current: Dietitian = Depends(get_current_dietitian),
 ):
     """Create a patient identity record (no health profile yet)."""
-    existing = db.query(Patient).filter(Patient.patient_code == payload.patient_code).first()
-    if existing:
-        raise HTTPException(status_code=409, detail="Patient code already exists")
+    try:
+        existing = db.query(Patient).filter(Patient.patient_code == payload.patient_code).first()
+        if existing:
+            raise HTTPException(status_code=409, detail="Patient code already exists")
 
-    patient = Patient(**payload.model_dump())
-    db.add(patient)
-    db.commit()
-    db.refresh(patient)
-    patient.latest_recommendation = None
-    return patient
+        patient = Patient(**payload.model_dump())
+        db.add(patient)
+        db.commit()
+        db.refresh(patient)
+
+        # FIX: Return as dict to match PatientRead schema
+        return {
+            "id": patient.id,
+            "patient_code": patient.patient_code,
+            "full_name": patient.full_name,
+            "age": patient.age,
+            "gender": patient.gender,
+            "ward": patient.ward,
+            "admission_date": patient.admission_date,
+            "discharge_date": patient.discharge_date,
+            "created_at": patient.created_at,
+            "updated_at": patient.updated_at,
+            "health_profile": None,
+            "latest_recommendation": None,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"ERROR in create_patient: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.get("/{patient_id}", response_model=PatientRead)
@@ -127,13 +174,33 @@ def get_patient(
     current: Dietitian = Depends(get_current_dietitian),
 ):
     """Get patient by UUID or patient_code, including health profile and latest recommendation."""
-    patient = _get_patient_or_404(db, patient_id)
-    # Find latest from already-loaded relationships
-    latest = None
-    if patient.recommendations:
-        latest = max(patient.recommendations, key=lambda r: r.generated_at)
-    patient.latest_recommendation = latest
-    return patient
+    try:
+        patient = _get_patient_or_404(db, patient_id)
+        # Find latest from already-loaded relationships
+        latest = None
+        if patient.recommendations:
+            latest = max(patient.recommendations, key=lambda r: r.generated_at)
+
+        # FIX: Return as dict to match PatientRead schema
+        return {
+            "id": patient.id,
+            "patient_code": patient.patient_code,
+            "full_name": patient.full_name,
+            "age": patient.age,
+            "gender": patient.gender,
+            "ward": patient.ward,
+            "admission_date": patient.admission_date,
+            "discharge_date": patient.discharge_date,
+            "created_at": patient.created_at,
+            "updated_at": patient.updated_at,
+            "health_profile": patient.health_profile,
+            "latest_recommendation": latest,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"ERROR in get_patient: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/{patient_id}", response_model=PatientRead)
@@ -144,17 +211,38 @@ def update_patient(
     current: Dietitian = Depends(get_current_dietitian),
 ):
     """Update patient identity fields."""
-    patient = _get_patient_or_404(db, patient_id)
-    for field, value in payload.model_dump(exclude_unset=True).items():
-        setattr(patient, field, value)
-    db.commit()
-    db.refresh(patient)
-    # Re-attach latest recommendation
-    latest = None
-    if patient.recommendations:
-        latest = max(patient.recommendations, key=lambda r: r.generated_at)
-    patient.latest_recommendation = latest
-    return patient
+    try:
+        patient = _get_patient_or_404(db, patient_id)
+        for field, value in payload.model_dump(exclude_unset=True).items():
+            setattr(patient, field, value)
+        db.commit()
+        db.refresh(patient)
+
+        # Re-attach latest recommendation
+        latest = None
+        if patient.recommendations:
+            latest = max(patient.recommendations, key=lambda r: r.generated_at)
+
+        # FIX: Return as dict to match PatientRead schema
+        return {
+            "id": patient.id,
+            "patient_code": patient.patient_code,
+            "full_name": patient.full_name,
+            "age": patient.age,
+            "gender": patient.gender,
+            "ward": patient.ward,
+            "admission_date": patient.admission_date,
+            "discharge_date": patient.discharge_date,
+            "created_at": patient.created_at,
+            "updated_at": patient.updated_at,
+            "health_profile": patient.health_profile,
+            "latest_recommendation": latest,
+        }
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"ERROR in update_patient: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.put("/{patient_id}/health-profile", response_model=PatientHealthProfileRead)
@@ -165,24 +253,30 @@ def upsert_health_profile(
     current: Dietitian = Depends(get_current_dietitian),
 ):
     """Create or update a patient's health profile."""
-    patient = _get_patient_or_404(db, patient_id)
+    try:
+        patient = _get_patient_or_404(db, patient_id)
 
-    profile = db.query(PatientHealthProfile).filter(
-        PatientHealthProfile.patient_id == patient.id
-    ).first()
+        profile = db.query(PatientHealthProfile).filter(
+            PatientHealthProfile.patient_id == patient.id
+        ).first()
 
-    data = payload.model_dump()
+        data = payload.model_dump()
 
-    if profile:
-        for field, value in data.items():
-            setattr(profile, field, value)
-    else:
-        profile = PatientHealthProfile(patient_id=patient.id, **data)
-        db.add(profile)
+        if profile:
+            for field, value in data.items():
+                setattr(profile, field, value)
+        else:
+            profile = PatientHealthProfile(patient_id=patient.id, **data)
+            db.add(profile)
 
-    db.commit()
-    db.refresh(profile)
-    return profile
+        db.commit()
+        db.refresh(profile)
+        return profile
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"ERROR in upsert_health_profile: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @router.delete("/{patient_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -192,7 +286,13 @@ def delete_patient(
     current: Dietitian = Depends(get_current_dietitian),
 ):
     """Delete a patient and all related records (health profile, recommendations, items, history)."""
-    patient = _get_patient_or_404(db, patient_id)
-    db.delete(patient)
-    db.commit()
-    return None
+    try:
+        patient = _get_patient_or_404(db, patient_id)
+        db.delete(patient)
+        db.commit()
+        return None
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"ERROR in delete_patient: {traceback.format_exc()}")
+        raise HTTPException(status_code=500, detail=str(e))
