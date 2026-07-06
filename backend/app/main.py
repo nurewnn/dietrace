@@ -39,7 +39,7 @@ app = FastAPI(
 )
 origins = [
     "https://dietrace-jub3g8efo-nurewnns-projects.vercel.app",
-    "https://dietrace.vercel.app"
+    "https://dietrace.vercel.app",
     "http://localhost:5173",
     "http://localhost:3000",
 ]
