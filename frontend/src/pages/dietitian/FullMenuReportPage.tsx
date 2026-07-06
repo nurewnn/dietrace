@@ -185,7 +185,7 @@ export default function FullMenuReportPage() {
               {patient?.full_name || "Patient"} — {plan?.total_days || 0} Days
             </h2>
             <p className="text-on-surface-variant">
-              {plan ? `${plan.admission_date} → ${plan.discharge_date}` : ""}
+              {plan ? `${formatDate(plan.admission_date)} → ${formatDate(plan.discharge_date)}` : ""}
             </p>
           </section>
 
