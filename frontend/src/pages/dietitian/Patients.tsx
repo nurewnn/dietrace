@@ -684,7 +684,6 @@ export default function Patients() {
                 Cancel
               </button>
 
-              {/* Menu Date Picker - Only one, in footer */}
               <button
                 type="button"
                 onClick={handleGenerateWeeklyPlan}
@@ -711,7 +710,5 @@ export default function Patients() {
         </div>
       </main>
     </div>
-  );
-}
   );
 }
