@@ -131,7 +131,8 @@ class PatientHealthProfileBase(BaseModel):
     has_chewing_problem: bool = False
     preferred_protein: str = "none"
     preferred_carbohydrate: str = "none"
-    patient_category: Literal["normal", "pregnant", "pre-operation", "post-operation"] = "normal"
+    # FIX: Changed from hyphen to underscore to match database values
+    patient_category: Literal["normal", "pregnant", "pre_operation", "post_operation"] = "normal"
     pregnancy_trimester: Optional[int] = Field(default=None, ge=1, le=3)
     smokes: bool = False
     sleep_pattern: str = "normal"
@@ -154,7 +155,8 @@ class PatientHealthProfileUpdate(BaseModel):
     has_chewing_problem: Optional[bool] = None
     preferred_protein: Optional[str] = None
     preferred_carbohydrate: Optional[str] = None
-    patient_category: Optional[Literal["normal", "pregnant", "pre-operation", "post-operation"]] = None
+    # FIX: Changed from hyphen to underscore to match database values
+    patient_category: Optional[Literal["normal", "pregnant", "pre_operation", "post_operation"]] = None
     pregnancy_trimester: Optional[int] = Field(default=None, ge=1, le=3)
     smokes: Optional[bool] = None
     sleep_pattern: Optional[str] = None
