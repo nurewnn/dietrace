@@ -37,6 +37,8 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+
+# ── CORS: explicit origins ONLY (wildcard + credentials = forbidden) ──
 origins = [
     "https://dietrace-jub3g8efo-nurewnns-projects.vercel.app",
     "https://dietrace.vercel.app",
@@ -44,20 +46,22 @@ origins = [
     "http://localhost:3000",
 ]
 
-# ── CORS: fallback to wildcard if FRONTEND_ORIGINS is not set ──
+# Override with env var if set
 _frontend_origins = os.getenv("FRONTEND_ORIGINS", "")
-allow_origins = [o.strip() for o in _frontend_origins.split(",") if o.strip()]
-if not allow_origins:
-    logger.warning("FRONTEND_ORIGINS not set — allowing all origins (*)")
-    allow_origins = ["*"]
+if _frontend_origins:
+    origins = [o.strip() for o in _frontend_origins.split(",") if o.strip()]
+    logger.info("Using FRONTEND_ORIGINS from env: %s", origins)
+else:
+    logger.info("Using default origins: %s", origins)
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=origins,  # ← ← ← GUNA origins, bukan allow_origins
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allow_headers=["Authorization", "Content-Type", "Accept"],
     expose_headers=["*"],
+    max_age=3600,
 )
 
 
