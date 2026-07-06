@@ -273,7 +273,7 @@ export default function FullMenuReportPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {day.menu_items.map((item) => (
+                    {(day.menu_items || []).map((item) => (
                       <div key={item.meal_time} className="p-4 rounded-xl bg-black/5 border border-black/5">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{item.meal_time}</p>
                         <p className="text-sm font-bold text-on-surface">{item.menu_name}</p>
