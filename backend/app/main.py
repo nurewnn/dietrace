@@ -37,6 +37,11 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+origins = [
+    "https://dietrace-jub3g8efo-nurewnns-projects.vercel.app",
+    "http://localhost:5173",
+    "http://localhost:3000",
+]
 
 # ── CORS: fallback to wildcard if FRONTEND_ORIGINS is not set ──
 _frontend_origins = os.getenv("FRONTEND_ORIGINS", "")
@@ -47,7 +52,7 @@ if not allow_origins:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allow_origins,
+    allow_origins=origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
