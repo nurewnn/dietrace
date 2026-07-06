@@ -5,9 +5,6 @@ if (!API_URL) {
   throw new Error("VITE_API_URL environment variable is required.");
 }
 
-/**
- * Check for 401 Unauthorized and redirect to login if needed.
- */
 export function checkAuth(res: Response, navigate: (path: string) => void): boolean {
   if (res.status === 401) {
     localStorage.removeItem("dietrace_token");
@@ -17,9 +14,7 @@ export function checkAuth(res: Response, navigate: (path: string) => void): bool
   return true;
 }
 
-/**
- * Helper fetch yang auto-attach Bearer token
- */
+// TAMBAH INI:
 export async function apiFetch(endpoint: string, options: RequestInit = {}) {
   const token = localStorage.getItem("dietrace_token");
   const url = `${API_URL}${endpoint}`;
