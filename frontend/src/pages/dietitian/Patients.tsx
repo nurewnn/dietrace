@@ -98,10 +98,7 @@ export default function Patients() {
       setIsLoadingExisting(true);
       setError("");
       try {
-        const token = localStorage.getItem("dietrace_token");
-        const res = await fetch(`${API_URL}/patients/${id}`, {
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        });
+        const res = await apiFetch(`/patients/${id}`);
         if (!checkAuth(res, navigate)) return;
         if (!res.ok) throw new Error(`Server returned ${res.status}: ${res.statusText}`);
         const api = await res.json();
@@ -203,16 +200,9 @@ export default function Patients() {
     };
 
     try {
-      const token = localStorage.getItem("dietrace_token");
-      const headers = {
-        "Content-Type": "application/json",
-        ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      };
-
-      const patientUrl = isEditMode ? `${API_URL}/patients/${id}` : `${API_URL}/patients`;
-      const patientRes = await fetch(patientUrl, {
+      const patientUrl = isEditMode ? `/patients/${id}` : "/patients";
+      const patientRes = await apiFetch(patientUrl, {
         method: isEditMode ? "PUT" : "POST",
-        headers,
         body: JSON.stringify(patientPayload),
       });
       if (!checkAuth(patientRes, navigate)) return;
@@ -223,9 +213,8 @@ export default function Patients() {
       const saved = await patientRes.json();
       const targetId = id ?? saved.id ?? saved.patient_code ?? patientCode;
 
-      const profileRes = await fetch(`${API_URL}/patients/${targetId}/health-profile`, {
+      const profileRes = await apiFetch(`/patients/${targetId}/health-profile`, {
         method: "PUT",
-        headers,
         body: JSON.stringify(healthProfilePayload),
       });
       if (!checkAuth(profileRes, navigate)) return;
@@ -248,7 +237,9 @@ export default function Patients() {
     setGenerateError("");
     setIsGenerating(true);
     try {
-      const res = await apiFetch(`/patients/${id}`);
+      const res = await apiFetch(`/weekly-plans/generate/${savedPatientId}`, {
+        method: "POST",
+      });
       if (!checkAuth(res, navigate)) return;
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
@@ -332,7 +323,7 @@ export default function Patients() {
                 onClick={() => navigate(isEditMode ? `/dietitian/patients/${id}` : "/dietitian/dashboard")}
                 className="text-xs font-bold text-primary uppercase tracking-widest hover:underline whitespace-nowrap"
               >
-                View Patient →
+                View Patient &rarr;
               </button>
             </div>
           )}
@@ -613,7 +604,7 @@ export default function Patients() {
                           return (
                             <span key={value} className="tag-chip px-2.5 py-1 rounded-full text-[10px] font-bold flex items-center gap-1.5 uppercase">
                               {opt?.label}
-                              <button type="button" onClick={() => toggleAllergy(value)} className="hover:text-error">×</button>
+                              <button type="button" onClick={() => toggleAllergy(value)} className="hover:text-error">&times;</button>
                             </span>
                           );
                         })}
