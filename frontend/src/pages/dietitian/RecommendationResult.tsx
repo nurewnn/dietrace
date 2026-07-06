@@ -81,12 +81,6 @@ interface PlanDay {
   status: string;
 }
 
-interface WeeklyPlanBrief {
-  id: string;
-  total_days: number;
-  days: PlanDay[];
-}
-
 const mealTimeLabels: Record<string, { icon: string; color: string; gradient: string }> = {
   breakfast: { icon: "wb_sunny", color: "text-amber-500", gradient: "from-amber-500/20 to-amber-600/10" },
   lunch: { icon: "sunny", color: "text-orange-500", gradient: "from-orange-500/20 to-orange-600/10" },
