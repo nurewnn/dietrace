@@ -40,7 +40,6 @@ app = FastAPI(
 
 # ── CORS: explicit origins ONLY (wildcard + credentials = forbidden) ──
 origins = [
-    "https://dietrace-jub3g8efo-nurewnns-projects.vercel.app",
     "https://dietrace.vercel.app",
     "http://localhost:5173",
     "http://localhost:3000",
@@ -56,7 +55,7 @@ else:
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,  # ← ← ← GUNA origins, bukan allow_origins
+    allow_origin_regex=r"https://.*\.vercel\.app|http://localhost:\d+",
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["Authorization", "Content-Type", "Accept", "Origin", "X-Requested-With"],
