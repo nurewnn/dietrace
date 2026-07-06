@@ -261,7 +261,7 @@ export default function PatientDetail() {
             </button>
           </div>
           <div className="flex-1 flex justify-center">
-            <h1 className="font-bold text-xl tracking-[0.2em] text-on-surface uppercase leading-none">dietrace</h1>
+            <button onClick={() => navigate("/dietitian/dashboard")} className="font-bold text-xl tracking-[0.2em] text-on-surface uppercase leading-none hover:text-primary transition-colors cursor-pointer bg-transparent border-none p-0">dietrace</button>
           </div>
           <div className="flex-1 flex justify-end items-center gap-6">
             <div className="flex items-center gap-2 text-on-surface-variant">
