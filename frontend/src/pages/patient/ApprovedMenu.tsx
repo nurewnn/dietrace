@@ -4,7 +4,9 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { API_URL } from "../../lib/api";
 
 type MealTime = "breakfast" | "lunch" | "dinner";
-type MenuStatus = "approved" | "pending_review" | "rejected" | "modified" | "needs_dietitian_action";
+
+// FIX: Tambah status tambahan yang API boleh return
+type MenuStatus = "approved" | "pending_review" | "rejected" | "modified" | "needs_dietitian_action" | "discharged" | "not_started" | "no_plan" | "error";
 
 interface MealItem {
   mealTime: MealTime;
@@ -122,7 +124,7 @@ export default function ApprovedMenu() {
             patientCode: apiData.patient_code,
             ward: apiData.ward,
             dietitianName: "On-duty Dietitian",
-            status: apiData.status,
+            status: apiData.status as MenuStatus,
             meals: [],
             message: apiData.message,
           });
@@ -135,7 +137,7 @@ export default function ApprovedMenu() {
           patientCode: apiData.patient_code,
           ward: apiData.ward,
           dietitianName: apiData.dietitian_name || "On-duty Dietitian",
-          status: apiData.status,
+          status: apiData.status as MenuStatus,
           meals: (apiData.items ?? []).map((item: any, idx: number) => ({
             mealTime: item.meal_time,
             menuName: item.menu_name,
@@ -200,7 +202,7 @@ export default function ApprovedMenu() {
         loop
         muted
         playsInline
-        />
+      />
       
       {/* Floating Orbs for depth */}
       <div className="fixed top-20 left-10 w-72 h-72 rounded-full bg-primary/5 blur-3xl animate-float z-0" />
