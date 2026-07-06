@@ -248,9 +248,7 @@ export default function Patients() {
     setGenerateError("");
     setIsGenerating(true);
     try {
-      const res = apiFetch(`/patients/${id}`);
-         if (!checkAuth(res, navigate)) return;
-      
+      const res = await apiFetch(`/patients/${id}`);
       if (!checkAuth(res, navigate)) return;
       if (!res.ok) {
         const errData = await res.json().catch(() => null);
