@@ -4,10 +4,12 @@ main.py — FastAPI application entrypoint for Supabase deployment.
 
 import logging
 import os
+import traceback
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 
 from app.database import test_connection, Base, engine
 from app.auth import router as auth_router
@@ -36,15 +38,31 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# ── CORS: fallback to wildcard if FRONTEND_ORIGINS is not set ──
+_frontend_origins = os.getenv("FRONTEND_ORIGINS", "")
+allow_origins = [o.strip() for o in _frontend_origins.split(",") if o.strip()]
+if not allow_origins:
+    logger.warning("FRONTEND_ORIGINS not set — allowing all origins (*)")
+    allow_origins = ["*"]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        *[origin.strip() for origin in os.getenv("FRONTEND_ORIGINS", "").split(",") if origin.strip()],
-    ],
+    allow_origins=allow_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+# ── Catch-all exception handler for 500s ──
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    logger.error("Unhandled exception: %s", exc, exc_info=True)
+    return JSONResponse(
+        status_code=500,
+        content={"detail": "Internal server error", "error": str(exc)},
+    )
+
 
 # Register ALL routers
 app.include_router(auth_router)
