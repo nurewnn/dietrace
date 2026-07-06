@@ -15,7 +15,7 @@ def build_explanation(
     selected_menus: dict,
     score_traces: dict,
     constraints: list,
-    rejected_menus: Optional[List[dict]] = None,  # <-- NEW
+    rejected_menus: Optional[List[dict]] = None,
 ):
     """
     Human-readable explanation saved into Recommendation.explanation_json
@@ -29,7 +29,7 @@ def build_explanation(
         if menu is None:
             recommendations[meal_time] = {
                 "menu": None,
-                "reason": "No suitable menu found. Dietitian action required (R65)."
+                "reason": "No suitable menu found. Dietitian action required (R62)."
             }
             continue
 
@@ -60,7 +60,7 @@ def build_explanation(
         "meal_targets": meal_targets,
         "constraints": constraints,
         "recommendations": recommendations,
-        "rejected_explanations": rejected_explanations,  # <-- NEW
+        "rejected_explanations": rejected_explanations,
         "summary": _build_summary(
             patient, bmi, bmi_category, final_daily_calories, 
             selected_menus, rejected_menus
