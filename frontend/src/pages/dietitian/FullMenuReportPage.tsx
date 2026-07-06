@@ -165,7 +165,7 @@ export default function FullMenuReportPage() {
             </button>
           </div>
           <div className="flex-1 flex justify-center">
-            <h1 className="font-bold text-xl tracking-[0.2em] text-on-surface uppercase leading-none">dietrace</h1>
+            <button onClick={() => navigate("/dietitian/dashboard")} className="font-bold text-xl tracking-[0.2em] text-on-surface uppercase leading-none hover:text-primary transition-colors cursor-pointer bg-transparent border-none p-0">dietrace</button>
           </div>
           <div className="flex-1 flex justify-end items-center gap-6">
             <div className="flex items-center gap-3 px-4 py-1.5 rounded-full bg-black/5 border border-black/10 hover:border-primary/30 transition-all cursor-pointer group">
@@ -273,7 +273,7 @@ export default function FullMenuReportPage() {
                     </div>
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    {(day.menu_items || []).map((item) => (
+                  {(day.menu_items || []).map((item) => (
                       <div key={item.meal_time} className="p-4 rounded-xl bg-black/5 border border-black/5">
                         <p className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant mb-1">{item.meal_time}</p>
                         <p className="text-sm font-bold text-on-surface">{item.menu_name}</p>
