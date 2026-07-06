@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { API_URL, checkAuth, apiFetch } from "../../lib/api";
+import { checkAuth, apiFetch } from "../../lib/api";
 
 const allergyOptions = [
   { label: "Seafood", value: "seafood" },
