@@ -374,7 +374,7 @@ export default function PatientDetail() {
                 </div>
               )}
             </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 border-t border-black/5">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 border-t border-black/5">
                 <div className="bg-black/5 p-4 rounded-2xl border border-black/5 text-center">
                   <p className="text-[10px] uppercase text-on-surface-variant font-bold mb-2">Weight</p>
                   <p className="text-2xl font-bold text-on-surface">{data.weightKg} <span className="text-sm font-normal text-on-surface-variant">kg</span></p>
