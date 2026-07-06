@@ -310,7 +310,7 @@ export default function WeeklyPlanPage() {
                         Cycle Day {day.cycle_day}
                       </p>
                       <div className="space-y-1">
-                        {day.menu_items.slice(0, 3).map((item) => (
+                        {(day.menu_items || []).slice(0, 3).map((item) => (
                           <p key={item.meal_time} className="text-xs text-on-surface-variant truncate">
                             <span className="capitalize font-medium">{item.meal_time}:</span>{" "}
                             {item.menu_name}
