@@ -132,7 +132,12 @@ def calculate_daily_calories(
 
 
 def get_calorie_bounds(target: int) -> tuple[int, int]:
-    """Returns (minimum, maximum) acceptable calories for a meal."""
+    """Returns (minimum, maximum) acceptable calories for a meal.
+
+    NOTE: This function is now only kept for backward compatibility / reference.
+    Calorie bounds are NO LONGER used as hard filters in the inference engine.
+    Calorie matching has been moved to soft scoring (see score_menu).
+    """
     return int(target * 0.5), int(target * 1.0)
 
 
@@ -333,16 +338,33 @@ def passes_constraints(
 
 
 # ==========================================================
-# SCORING RULES (R56-R60)
+# SCORING RULES (R56-R60) + CALORIE PROXIMITY (SOFT)
 # ==========================================================
 
 def score_menu(
     menu,
-    profile
+    profile,
+    target_calories: float | None = None,
 ) -> tuple[int, List[str]]:
 
     score = 0
     trace = []
+
+    # ========================================================
+    # CALORIE PROXIMITY BONUS (soft constraint — never excludes)
+    # Replaces old R44 (min 50% of target) and R45 (hard ceiling
+    # at 100% of target). Closer to target = higher bonus, but a
+    # menu is NEVER rejected purely for calorie deviation.
+    # ========================================================
+    if menu.calories_kcal is not None and target_calories and target_calories > 0:
+        deviation_pct = abs(menu.calories_kcal - target_calories) / target_calories
+        calorie_bonus = max(0, int(20 * (1 - deviation_pct)))
+        if calorie_bonus > 0:
+            score += calorie_bonus
+            trace.append(
+                f"+{calorie_bonus} calorie proximity "
+                f"(target: {int(target_calories)}, actual: {menu.calories_kcal})"
+            )
 
     # R56: Preferred protein
     if (
