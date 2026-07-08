@@ -219,25 +219,6 @@
 | R67: | IF Recommendation status = approved THEN Patient can view menu |
 | R68: | IF Recommendation status is pending review OR rejected THEN Patient cannot view menu yet |
 
----
-
-## Quick Reference: What Changed vs. Original
-
-| Rule | Original | Corrected |
-|------|----------|-----------|
-| **R4** | `BMI >= 25` → overweight | `BMI >= 25 AND < 30` → overweight |
-| **R5** | *(did not exist)* | `BMI >= 30` → obese |
-| **R6-R8** | R5-R7 (age) | Shifted +1 due to R5 |
-| **R9-R12** | R8-R16 (calorie factor lookup) | **Replaced** by BMR + activity multiplier |
-| **R13-R15** | R18-R20 (age × 0.80/0.90) | **Growth adjustments** (+200 child, +100 teen) |
-| **R16-R21** | R21-R26 (category adjustment) | Shifted +1 due to new R16-R21 structure |
-| **R22** | R27 (final = age-adjusted + category) | Final = activity + growth + category |
-| **R23-R25** | R28-R30 (meal targets) | Shifted +1 |
-| **R29** | R34 (no disease → no constraint) | **Fibre constraint** for normal / post-op |
-| **R30** | *(did not exist)* | **Oil constraint** for high cholesterol |
-| **R31-R35** | R35-R39 (allergies) | Shifted +1 |
-| **R36-R39** | R41-R44 (day mapping) | Shifted +1 |
-| **R40-R42** | R45-R47 (category filters) | Shifted +1; R48 removed (redundant) |
 | **R43-R55** | R49-R58 (candidate filters) | Shifted +1; added R44 (minimum threshold) |
 | **R56-R62** | R59-R65 (scoring) | Shifted +1 |
 | **R63-R68** | R66-R71 (approval) | Shifted +1 |
