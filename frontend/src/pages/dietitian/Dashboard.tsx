@@ -433,8 +433,8 @@ export default function Dashboard() {
     <div ref={wrapperRef} className="dietitian-dashboard-page min-h-screen overflow-x-hidden relative selection:bg-primary selection:text-white">
       {/* Background */}
       <div
-        className="fixed inset-0 z-0"
-        style={{ background: "linear-gradient(135deg, #f8faf8 100%, #ffffff 0%)" }}
+        className="fixed inset-0 z-0 bg-cover bg-center opacity-20"
+        style={{ backgroundImage: "url('/assets/bg-network.png')" }}
       />
 
       {/* ════════════════════════════════════════════════════════════
