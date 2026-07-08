@@ -261,7 +261,7 @@ export default function PatientDetail() {
             </button>
           </div>
           <div className="flex-1 flex justify-center">
-            <h1 className="font-bold text-xl tracking-[0.2em] text-on-surface uppercase leading-none">dietrace</h1>
+            <button onClick={() => navigate("/dietitian/dashboard")} className="font-bold text-xl tracking-[0.2em] text-on-surface uppercase leading-none hover:text-primary transition-colors cursor-pointer bg-transparent border-none p-0">dietrace</button>
           </div>
           <div className="flex-1 flex justify-end items-center gap-6">
             <div className="flex items-center gap-2 text-on-surface-variant">
@@ -373,8 +373,7 @@ export default function PatientDetail() {
                   </div>
                 </div>
               )}
-            </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 border-t border-black/5">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6 pt-6 border-t border-black/5">
                 <div className="bg-black/5 p-4 rounded-2xl border border-black/5 text-center">
                   <p className="text-[10px] uppercase text-on-surface-variant font-bold mb-2">Weight</p>
                   <p className="text-2xl font-bold text-on-surface">{data.weightKg} <span className="text-sm font-normal text-on-surface-variant">kg</span></p>

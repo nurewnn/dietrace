@@ -132,7 +132,12 @@ def calculate_daily_calories(
 
 
 def get_calorie_bounds(target: int) -> tuple[int, int]:
-    """Returns (minimum, maximum) acceptable calories for a meal."""
+    """Returns (minimum, maximum) acceptable calories for a meal.
+
+    NOTE: This function is now only kept for backward compatibility / reference.
+    Calorie bounds are NO LONGER used as hard filters in the inference engine.
+    Calorie matching has been moved to soft scoring (see score_menu).
+    """
     return int(target * 0.5), int(target * 1.0)
 
 
@@ -277,13 +282,7 @@ def passes_constraints(
     if profile.has_high_cholesterol and menu.fat_level.lower() == "high":
         reasons.append("high fat")
 
-    # R53: Fibre constraint (normal/post-op patients need adequate fibre)
-    if (
-        profile.patient_category in ("normal", "post_operation")
-        and menu.fibre_level.lower() == "low"
-    ):
-        reasons.append("low fibre")
-
+    # R53 REMOVED: Fibre moved to scoring (soft constraint)
     # R54: Oil constraint for high cholesterol patients
     if (
         profile.has_high_cholesterol
@@ -299,13 +298,7 @@ def passes_constraints(
     if profile.has_chewing_problem and not menu.suitable_chewing:
         reasons.append("not chewing friendly")
 
-    # R52: Low fibre (pre-operation)
-    if (
-        profile.patient_category == "pre_operation"
-        and menu.fibre_level.lower() != "low"
-    ):
-        reasons.append("not low fibre")
-
+    # R52 REMOVED: Fibre moved to scoring (soft constraint)
     # Pregnancy suitability
     if (
         profile.patient_category == "pregnant"
@@ -345,16 +338,33 @@ def passes_constraints(
 
 
 # ==========================================================
-# SCORING RULES (R56-R60)
+# SCORING RULES (R56-R60) + CALORIE PROXIMITY (SOFT)
 # ==========================================================
 
 def score_menu(
     menu,
-    profile
+    profile,
+    target_calories: float | None = None,
 ) -> tuple[int, List[str]]:
 
     score = 0
     trace = []
+
+    # ========================================================
+    # CALORIE PROXIMITY BONUS (soft constraint — never excludes)
+    # Replaces old R44 (min 50% of target) and R45 (hard ceiling
+    # at 100% of target). Closer to target = higher bonus, but a
+    # menu is NEVER rejected purely for calorie deviation.
+    # ========================================================
+    if menu.calories_kcal is not None and target_calories and target_calories > 0:
+        deviation_pct = abs(menu.calories_kcal - target_calories) / target_calories
+        calorie_bonus = max(0, int(20 * (1 - deviation_pct)))
+        if calorie_bonus > 0:
+            score += calorie_bonus
+            trace.append(
+                f"+{calorie_bonus} calorie proximity "
+                f"(target: {int(target_calories)}, actual: {menu.calories_kcal})"
+            )
 
     # R56: Preferred protein
     if (
@@ -389,6 +399,21 @@ def score_menu(
     ):
         score += 40
         trace.append("+40 post-op high protein (R59)")
+
+    # R58b: Fibre bonus for normal/post-op patients (soft constraint)
+    if profile.patient_category in ("normal", "post_operation"):
+        if menu.fibre_level.lower() == "high":
+            score += 15
+            trace.append("+15 high fibre bonus (R58b)")
+        elif menu.fibre_level.lower() == "low":
+            score -= 5
+            trace.append("-5 low fibre penalty (R58b)")
+
+    # R58c: Pre-op low fibre bonus (soft constraint)
+    if profile.patient_category == "pre_operation":
+        if menu.fibre_level.lower() == "low":
+            score += 10
+            trace.append("+10 low fibre for pre-op (R58c)")
 
     # R60: No preference match
     if score == 0:

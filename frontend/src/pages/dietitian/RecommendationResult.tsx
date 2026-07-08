@@ -81,12 +81,6 @@ interface PlanDay {
   status: string;
 }
 
-interface WeeklyPlanBrief {
-  id: string;
-  total_days: number;
-  days: PlanDay[];
-}
-
 const mealTimeLabels: Record<string, { icon: string; color: string; gradient: string }> = {
   breakfast: { icon: "wb_sunny", color: "text-amber-500", gradient: "from-amber-500/20 to-amber-600/10" },
   lunch: { icon: "sunny", color: "text-orange-500", gradient: "from-orange-500/20 to-orange-600/10" },
@@ -168,7 +162,7 @@ export default function RecommendationResult() {
       const mealTime = item.meal_time || "unknown";
 
       return {
-        mealTime: mealTime.charAt(0).toUpperCase() + mealTime.slice(1),
+        mealTime: (mealTime || "").charAt(0).toUpperCase() + (mealTime || "").slice(1),
         time: getMealTime(mealTime),
         name: menu.menu_name || "No Suitable Menu",
         code: menu.menu_code || "—",
@@ -185,7 +179,7 @@ export default function RecommendationResult() {
       };
     });
 
-    const rulesFired: RuleTrace[] = (api.rule_trace_json || []).map((trace: any) => ({
+    const rulesFired: RuleTrace[] = ((api.rule_trace_json || [])).map((trace: any) => ({
       id: trace.rule_id || "R???",
       rule: trace.message || "Unknown rule",
       condition: trace.condition_matched || "Unknown",
@@ -193,7 +187,7 @@ export default function RecommendationResult() {
     }));
 
     const rawRejected = api.explanation_json?.rejected_explanations || [];
-    const rejectedItems: RejectedItem[] = rawRejected.map((rej: any) => ({
+    const rejectedItems: RejectedItem[] = (rawRejected || []).map((rej: any) => ({
       menuCode: rej.menu_code || "—",
       name: rej.menu_name || "Unknown",
       reason: rej.reason || "Unknown",
@@ -395,7 +389,7 @@ export default function RecommendationResult() {
             </button>
           </div>
           <div className="flex-1 flex justify-center">
-            <h1 className="font-bold text-xl tracking-[0.2em] text-on-surface uppercase leading-none">dietrace</h1>
+            <button onClick={() => navigate("/dietitian/dashboard")} className="font-bold text-xl tracking-[0.2em] text-on-surface uppercase leading-none hover:text-primary transition-colors cursor-pointer bg-transparent border-none p-0">dietrace</button>
           </div>
           <div className="flex-1 flex justify-end items-center gap-6">
             <div className="flex items-center gap-2 text-on-surface-variant">
@@ -501,14 +495,14 @@ export default function RecommendationResult() {
                 <div className="space-y-1">
                   <span className="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Conditions</span>
                   <div className="flex gap-1 flex-wrap pt-1">
-                    {patient.conditions.map((c) => (
+                    {(patient.conditions || []).map((c) => (
                       <span key={c} className="px-2 py-0.5 bg-error/10 text-error text-[10px] font-bold rounded uppercase border border-error/20">{c}</span>
                     ))}
                   </div>
                 </div>
                 <div className="space-y-1">
                   <span className="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Allergies</span>
-                  <span className="block text-error font-bold text-lg">{patient.allergies.join(", ") || "None"}</span>
+                  <span className="block text-error font-bold text-lg">{(patient.allergies || []).join(", ") || "None"}</span>
                 </div>
                 <div className="space-y-1">
                   <span className="text-[10px] uppercase tracking-widest text-on-surface-variant font-bold">Activity Level</span>
@@ -539,7 +533,7 @@ export default function RecommendationResult() {
                     <span className="text-[10px] font-bold uppercase tracking-widest text-on-surface-variant">Day Selector</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
-                    {planDays.map((day) => {
+                    {(planDays || []).map((day) => {
                       const isCurrent = day.day_number === dayNumber;
                       const statusColor =
                         day.status === "approved" ? "bg-success/10 text-success border-success/20" :
@@ -600,7 +594,7 @@ export default function RecommendationResult() {
                         </div>
                       )}
                       <div className="flex flex-wrap gap-2">
-                        {item.tags.map((tag) => (
+                        {(item.tags || []).map((tag) => (
                           <span key={tag} className={`px-3 py-1 rounded-full text-[10px] font-bold uppercase tracking-widest ${
                             item.status === "blocked"
                               ? "bg-error/10 text-error border border-error/20"
@@ -664,7 +658,7 @@ export default function RecommendationResult() {
                   <span className="text-[10px] text-on-surface-variant font-bold uppercase tracking-widest opacity-60">Trace v1.9.0</span>
                 </div>
                 <div className="p-8 grid grid-cols-1 md:grid-cols-2 gap-4">
-                  {rulesFired.map((rule) => (
+                  {(rulesFired || []).map((rule) => (
                     <div key={rule.id} className="p-5 rounded-2xl liquid-glass-clear flex flex-col gap-3">
                       <div className="flex justify-between items-center">
                         <span className="font-mono text-[10px] text-primary">{rule.id}</span>
@@ -700,7 +694,7 @@ export default function RecommendationResult() {
                             </tr>
                           </thead>
                           <tbody className="divide-y divide-white/5 text-sm">
-                            {rejectedItems.map((item, idx) => (
+                            {(rejectedItems || []).map((item, idx) => (
                               <tr key={idx}>
                                 <td className="px-6 py-4 text-on-surface-variant font-medium">{item.menuCode}</td>
                                 <td className="px-6 py-4 font-bold text-on-surface">{item.name}</td>
@@ -726,7 +720,7 @@ export default function RecommendationResult() {
                 <div className="space-y-6">
                   <p className="text-sm leading-relaxed text-on-surface-variant">{explanation.summary}</p>
                   <div className="space-y-4">
-                    {explanation.points.map((point, idx) => (
+                    {(explanation.points || []).map((point, idx) => (
                       <div key={idx} className="flex items-start gap-4 p-4 liquid-glass-clear rounded-2xl">
                         <span className="material-symbols-outlined text-primary text-sm mt-0.5">{point.icon}</span>
                         <p className="text-xs text-on-surface-variant leading-relaxed">{point.text}</p>
@@ -808,7 +802,7 @@ export default function RecommendationResult() {
             <div className="p-6 border-b border-white/10 flex items-center justify-between">
               <div className="flex items-center gap-3">
                 <span className="material-symbols-outlined text-primary">swap_horiz</span>
-                <h3 className="text-xl font-bold text-on-surface">Swap {swapMealTime.charAt(0).toUpperCase() + swapMealTime.slice(1)} Menu</h3>
+                <h3 className="text-xl font-bold text-on-surface">Swap {(swapMealTime || "").charAt(0).toUpperCase() + (swapMealTime || "").slice(1)} Menu</h3>
               </div>
               <button onClick={() => setShowSwapModal(false)} className="p-2 rounded-full hover:bg-white/10 transition-colors">
                 <span className="material-symbols-outlined text-on-surface-variant">close</span>
@@ -826,7 +820,7 @@ export default function RecommendationResult() {
                 <div className="text-center py-12 text-on-surface-variant">No menu options available.</div>
               ) : (
                 <div className="space-y-3">
-                  {menuOptions.map((menu) => (
+                  {(menuOptions || []).map((menu) => (
                     <div key={menu.id} className="p-4 rounded-2xl border border-white/10 hover:border-primary/30 hover:bg-primary/5 transition-all cursor-pointer flex items-center justify-between group">
                       <div className="flex-1">
                         <div className="flex items-center gap-2 mb-1">

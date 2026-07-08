@@ -126,6 +126,13 @@ class Patient(Base):
         back_populates="patient", cascade="all, delete-orphan"
     )
 
+    # FIX: Added computed property for latest_recommendation
+    @property
+    def latest_recommendation(self) -> Optional["Recommendation"]:
+        if self.recommendations:
+            return max(self.recommendations, key=lambda r: r.generated_at)
+        return None
+
 
 class PatientHealthProfile(Base):
     __tablename__ = "patient_health_profiles"
